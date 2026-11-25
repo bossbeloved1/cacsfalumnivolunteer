@@ -1236,3 +1236,32 @@ body.modal-open {
     padding: 12px;
   }
 }
+/* CENTRE THE ADMIN HERO CONTENT */
+.admin-hero {
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-hero .eyebrow {
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+}
+
+.admin-hero h1 {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.admin-hero p {
+  width: 100%;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
