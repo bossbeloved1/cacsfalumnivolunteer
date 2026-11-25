@@ -1,8 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#30006b">
   <title>CACSF Media Admin</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="admin.css">
@@ -25,15 +27,18 @@
     <section id="login" class="login-card">
       <h2>Admin access</h2>
       <p>Sign in with an authorised Supabase admin account.</p>
+
       <label>Email
         <input id="email" type="email" placeholder="Admin email" autocomplete="username" required>
       </label>
+
       <label>Password
         <span class="password-wrap">
           <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
           <button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" aria-pressed="false">Show</button>
         </span>
       </label>
+
       <button id="loginBtn" class="submit">Sign in</button>
       <p id="loginHint" class="hint" aria-live="polite"></p>
     </section>
@@ -41,13 +46,27 @@
     <section id="dashboard" hidden>
       <div class="dash-toolbar">
         <div class="stats">
-          <div class="stat"><small>Total Applicants</small><strong id="count">0</strong></div>
-          <div class="stat reviewed-stat"><small>Reviewed</small><strong id="reviewedCount">0</strong></div>
-          <div class="stat"><small>Selected Applicants</small><strong id="selectedCount">0</strong></div>
+          <div class="stat">
+            <small>Total Applicants</small>
+            <strong id="count">0</strong>
+          </div>
+
+          <button class="stat stat-trigger reviewed-stat" id="reviewedStatBtn" type="button" aria-haspopup="dialog">
+            <small>Reviewed <span class="stat-hint">View list ↗</span></small>
+            <strong id="reviewedCount">0</strong>
+          </button>
+
+          <button class="stat stat-trigger not-reviewed-stat" id="notReviewedStatBtn" type="button" aria-haspopup="dialog">
+            <small>Not Reviewed <span class="stat-hint">View list ↗</span></small>
+            <strong id="notReviewedCount">0</strong>
+          </button>
         </div>
+
         <div class="actions">
           <div class="dropdown-wrap">
-            <button id="exportAllBtn" class="primary-action" type="button" aria-expanded="false">Export Applicants <span>⌄</span></button>
+            <button id="exportAllBtn" class="primary-action" type="button" aria-expanded="false">
+              Export Applicants <span>⌄</span>
+            </button>
             <div id="exportAllMenu" class="dropdown-menu" hidden>
               <button data-export="excel" data-scope="all">Microsoft Excel (.xlsx)</button>
               <button data-export="word" data-scope="all">Microsoft Word (.doc)</button>
@@ -61,11 +80,16 @@
 
       <div class="applicant-controls">
         <input id="search" class="search" type="search" placeholder="Search name, registration number, set, email or skill…">
+
         <div class="selection-actions">
-          <label class="select-all-label"><input type="checkbox" id="selectAll"> Select all applicants on this page</label>
+          <label class="select-all-label">
+            <input type="checkbox" id="selectAll">
+            Select all applicants on this page
+          </label>
+
           <div class="bulk-actions">
             <div class="dropdown-wrap">
-              <button id="downloadSelected" class="outline" type="button" disabled>Download selected⌄</button>
+              <button id="downloadSelected" class="outline" type="button" disabled>Download selected ⌄</button>
               <div id="selectedExportMenu" class="dropdown-menu" hidden>
                 <button data-export="excel" data-scope="selected">Microsoft Excel (.xlsx)</button>
                 <button data-export="word" data-scope="selected">Microsoft Word (.doc)</button>
@@ -82,24 +106,40 @@
         <h2>Registered Applicants</h2>
         <p id="resultInfo">Showing applicants</p>
       </div>
-      <div id="applicants" class="applicant-list"><div class="empty">Loading applications...</div></div>
+
+      <div id="applicants" class="applicant-list">
+        <div class="empty">Loading applications...</div>
+      </div>
 
       <nav id="pagination" class="pagination" aria-label="Applicant pages">
         <button id="prevPage" class="page-btn" disabled>← Previous</button>
         <div id="pageNumbers" class="page-numbers"></div>
-        <div class="page-jump"><label for="pageInput">Go to page</label><input id="pageInput" type="number" min="1" placeholder="Page"><button id="goPage" class="page-btn">Go</button></div>
+        <div class="page-jump">
+          <label for="pageInput">Go to page</label>
+          <input id="pageInput" type="number" min="1" placeholder="Page">
+          <button id="goPage" class="page-btn">Go</button>
+        </div>
         <button id="nextPage" class="page-btn">Next →</button>
       </nav>
+
       <p class="pagination-info" id="paginationInfo">10 applicants per page</p>
     </section>
 
+    <!-- Applicant file preview and applicant details -->
     <div id="previewModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="previewTitle" hidden>
       <div class="preview-box">
         <div class="preview-header">
-          <div><h2 id="previewTitle">Applicant preview</h2><p id="previewSubtitle"></p></div>
+          <div>
+            <h2 id="previewTitle">Applicant preview</h2>
+            <p id="previewSubtitle"></p>
+          </div>
           <button type="button" id="closePreview" class="preview-close" aria-label="Close">×</button>
         </div>
-        <div id="previewContent" class="preview-content"><p>Preview will appear here.</p></div>
+
+        <div id="previewContent" class="preview-content">
+          <p>Preview will appear here.</p>
+        </div>
+
         <div class="preview-navigation">
           <button id="prevFile" class="page-btn">← Previous</button>
           <span id="previewCounter"></span>
@@ -108,7 +148,22 @@
       </div>
     </div>
 
-    <div id="deleteModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
+    <!-- Reviewed / Not Reviewed applicant list -->
+    <div id="statusListModal" class="overlay-modal status-overlay" role="dialog" aria-modal="true" aria-labelledby="statusListTitle" hidden>
+      <div class="status-list-box">
+        <div class="preview-header">
+          <div>
+            <h2 id="statusListTitle">Applicants</h2>
+            <p id="statusListSubtitle">Applicant review list</p>
+          </div>
+          <button type="button" id="closeStatusList" class="preview-close" aria-label="Close">×</button>
+        </div>
+        <div id="statusListContent" class="status-list-content"></div>
+      </div>
+    </div>
+
+    <!-- Delete confirmation -->
+    <div id="deleteModal" class="overlay-modal delete-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
       <div class="delete-box">
         <div class="delete-icon">!</div>
         <h2 id="deleteTitle">Delete applicant?</h2>
@@ -121,6 +176,7 @@
     </div>
 
     <div id="adminToast" class="admin-toast" role="status" aria-live="polite"></div>
+
     <footer>© CACSF Alumni Fellowship Media Unit</footer>
   </main>
 
