@@ -1,21 +1,44 @@
 
+/* ==========================================
+   CACSF ALUMNI FELLOWSHIP MEDIA UNIT
+   ADMIN DASHBOARD
+========================================== */
+
 const config = window.CACSF_CONFIG || {};
+
 const cloud = Boolean(
   config.supabaseUrl &&
   config.supabaseAnonKey &&
   window.supabase
 );
 
+/* ==========================================
+   SUPABASE CONNECTION
+========================================== */
+
 const db = cloud
   ? window.supabase.createClient(
       config.supabaseUrl,
-      config.supabaseAnonKey
+      config.supabaseAnonKey,
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      }
     )
   : null;
 
-const login = document.querySelector("#login");
-const dash = document.querySelector("#dashboard");
-const hint = document.querySelector("#loginHint");
+/* ==========================================
+   ELEMENTS AND VARIABLES
+========================================== */
+
+const $ = selector => document.querySelector(selector);
+
+const login = $("#login");
+const dash = $("#dashboard");
+const hint = $("#loginHint");
 
 const PAGE_SIZE = 10;
 
@@ -26,8 +49,11 @@ let currentFiles = [];
 let currentFileIndex = 0;
 let pendingDeleteIds = [];
 let adminRole = null;
+let exportScope = "all";
 
-const $ = selector => document.querySelector(selector);
+/* ==========================================
+   GENERAL HELPERS
+========================================== */
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -44,42 +70,85 @@ function formatNumber(number) {
 }
 
 function registrationNumber(row) {
-  return row.registration_number
+  return row.registration_number !== null &&
+         row.registration_number !== undefined
     ? formatNumber(row.registration_number)
     : "Pending";
 }
 
 function notify(message) {
   const toast = $("#adminToast");
-  if (!toast) return;
+
+  if (!toast) {
+    alert(message);
+    return;
+  }
 
   toast.textContent = message;
   toast.classList.add("show");
 
   clearTimeout(notify.timer);
+
   notify.timer = setTimeout(() => {
     toast.classList.remove("show");
   }, 3500);
 }
 
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = filename;
+
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function safeFileName(value) {
+  return String(value || "applicant")
+    .replace(/[^a-z0-9-_]/gi, "_")
+    .replace(/_+/g, "_");
+}
+
+/* ==========================================
+   LOAD EXTERNAL EXPORT LIBRARIES
+========================================== */
+
 function loadScript(src) {
   return new Promise((resolve, reject) => {
-    const existing = [...document.scripts].find(s => s.src === src);
+    const existing = [...document.scripts].find(
+      script => script.src === src
+    );
 
     if (existing) {
-      if (existing.dataset.loaded === "true") return resolve();
+      if (existing.dataset.loaded === "true") {
+        resolve();
+        return;
+      }
+
       existing.addEventListener("load", resolve, { once: true });
       existing.addEventListener("error", reject, { once: true });
+
       return;
     }
 
     const script = document.createElement("script");
+
     script.src = src;
+
     script.onload = () => {
       script.dataset.loaded = "true";
       resolve();
     };
-    script.onerror = reject;
+
+    script.onerror = () => reject(
+      new Error("Could not load an export library.")
+    );
+
     document.head.appendChild(script);
   });
 }
@@ -98,19 +167,248 @@ async function loadExportLibraries() {
   );
 }
 
+/* ==========================================
+   AUTHENTICATION AND SESSION RESTORATION
+========================================== */
+
+function showLogin(message = "") {
+  login.hidden = false;
+  dash.hidden = true;
+
+  if (hint) hint.textContent = message;
+}
+
+function showDashboard() {
+  login.hidden = true;
+  dash.hidden = false;
+
+  render();
+}
+
+/*
+  IMPORTANT:
+  Supabase stores the authenticated session in browser storage.
+  getSession() restores that session when the page is refreshed.
+*/
+
+async function checkAdminSession() {
+  if (!cloud) {
+    showLogin(
+      "Supabase is not configured. Live administrator sign-in is unavailable."
+    );
+    return;
+  }
+
+  showLogin("Restoring your administrator session…");
+
+  try {
+    const { data, error } = await db.auth.getSession();
+
+    if (error) throw error;
+
+    if (!data.session) {
+      showLogin("Please sign in to access the admin dashboard.");
+      return;
+    }
+
+    await authoriseAdmin();
+
+  } catch (error) {
+    showLogin(
+      "Could not restore your session. Please sign in again. " +
+      error.message
+    );
+  }
+}
+
+/*
+  Verify that the signed-in Supabase user is an authorised admin.
+*/
+
+async function authoriseAdmin() {
+  if (hint) hint.textContent = "Verifying administrator access…";
+
+  const { data: admin, error } = await db
+    .from("media_admins")
+    .select("role")
+    .single();
+
+  if (error || !admin) {
+    await db.auth.signOut();
+
+    showLogin(
+      "This account is not authorised to access the CACSF Media Unit dashboard."
+    );
+
+    return;
+  }
+
+  adminRole = admin.role;
+  window.CACSF_ADMIN_ROLE = adminRole;
+
+  await loadApplicants();
+}
+
+/*
+  Sign-in button.
+*/
+
+$("#loginBtn").onclick = async () => {
+  if (!cloud) {
+    showLogin(
+      "Supabase is not configured. Live administrator sign-in is unavailable."
+    );
+    return;
+  }
+
+  const email = $("#email").value.trim();
+  const password = $("#password").value;
+
+  if (!email || !password) {
+    hint.textContent = "Enter your email address and password.";
+    return;
+  }
+
+  const button = $("#loginBtn");
+
+  button.disabled = true;
+  button.textContent = "Signing in…";
+
+  hint.textContent = "Checking administrator access…";
+
+  try {
+    const { error } = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      hint.textContent = error.message;
+      return;
+    }
+
+    await authoriseAdmin();
+
+  } catch (error) {
+    hint.textContent = error.message;
+
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign in";
+  }
+};
+
+$("#password").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    $("#loginBtn").click();
+  }
+});
+
+/*
+  If the user signs out from another tab, update this tab too.
+  Do not run database queries inside this authentication callback.
+*/
+
+if (cloud) {
+  db.auth.onAuthStateChange(event => {
+    if (event === "SIGNED_OUT") {
+      rows = [];
+      selectedIds.clear();
+      adminRole = null;
+
+      showLogin("Your administrator session has ended.");
+    }
+  });
+}
+
+/* ==========================================
+   LOAD APPLICANTS
+========================================== */
+
+async function loadApplicants() {
+  if (hint) hint.textContent = "Loading applicants…";
+
+  const { data, error } = await db
+    .from("applications")
+    .select("*")
+    .order("registration_number", { ascending: true });
+
+  /*
+    Do not sign the administrator out because of a database
+    loading error. Keep the authenticated session active.
+  */
+
+  if (error) {
+    login.hidden = true;
+    dash.hidden = false;
+
+    $("#applicants").innerHTML = `
+      <div class="empty">
+        <h3>Unable to load applicants</h3>
+        <p>${esc(error.message)}</p>
+        <button class="outline" id="retryLoad">
+          Try again
+        </button>
+      </div>
+    `;
+
+    $("#retryLoad").onclick = loadApplicants;
+
+    return;
+  }
+
+  rows = data || [];
+
+  selectedIds.clear();
+  currentPage = 1;
+
+  showDashboard();
+}
+
+/* ==========================================
+   PHONE AND WHATSAPP LINKS
+========================================== */
+
 function normalisePhone(number) {
   let value = String(number || "").replace(/\D/g, "");
 
   if (value.startsWith("0")) {
     value = "234" + value.slice(1);
-  } else if (value.startsWith("234")) {
-    // Already in Nigerian international format.
-  } else if (value.length === 10) {
+  } else if (!value.startsWith("234") && value.length === 10) {
     value = "234" + value;
   }
 
   return value;
 }
+
+function contactLinks(row) {
+  const phone = String(row.phone || "").replace(/\D/g, "");
+  const whatsapp = normalisePhone(row.whatsapp || row.phone);
+
+  return `
+    <div class="contact-link">
+      ${
+        phone
+          ? `<a href="tel:${esc(phone)}">☎ Call ${esc(row.phone)}</a>`
+          : ""
+      }
+
+      ${
+        whatsapp
+          ? `<a href="https://wa.me/${esc(whatsapp)}"
+               target="_blank"
+               rel="noopener noreferrer">
+               WhatsApp ${esc(row.whatsapp || row.phone)}
+             </a>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+/* ==========================================
+   APPLICANT FILES
+========================================== */
 
 function getApplicantFiles(row) {
   const files = [];
@@ -140,156 +438,22 @@ async function getSignedFileUrl(path) {
   return data.signedUrl;
 }
 
-/* ------------------------------
-   ADMIN LOGIN AND AUTHORISATION
--------------------------------- */
+/* ==========================================
+   APPLICANT CARD
+========================================== */
 
-async function checkAdminSession() {
-  if (!cloud) {
-    hint.textContent =
-      "Supabase is not configured. Live administrator sign-in is unavailable.";
-    return;
-  }
-
-  const { data } = await db.auth.getSession();
-
-  if (data.session) {
-    await authoriseAdmin();
-  }
-}
-
-async function authoriseAdmin() {
-  hint.textContent = "Verifying administrator access…";
-
-  const { data: admin, error } = await db
-    .from("media_admins")
-    .select("role")
-    .single();
-
-  if (error || !admin) {
-    await db.auth.signOut();
-
-    login.hidden = false;
-    dash.hidden = true;
-
-    hint.textContent =
-      "This account is not authorised to access the CACSF Media Unit dashboard.";
-
-    return;
-  }
-
-  adminRole = admin.role;
-  window.CACSF_ADMIN_ROLE = adminRole;
-
-  await loadApplicants();
-}
-
-$("#loginBtn").onclick = async () => {
-  if (!cloud) {
-    hint.textContent =
-      "Supabase is not configured. Live administrator sign-in is unavailable.";
-    return;
-  }
-
-  const email = $("#email").value.trim();
-  const password = $("#password").value;
-
-  if (!email || !password) {
-    hint.textContent = "Enter your email address and password.";
-    return;
-  }
-
-  hint.textContent = "Checking administrator access…";
-
-  const { error } = await db.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  if (error) {
-    hint.textContent = error.message;
-    return;
-  }
-
-  await authoriseAdmin();
-};
-
-$("#password").addEventListener("keydown", event => {
-  if (event.key === "Enter") $("#loginBtn").click();
-});
-
-async function loadApplicants() {
-  hint.textContent = "Loading applicants…";
-
-  const { data, error } = await db
-    .from("applications")
-    .select("*")
-    .order("registration_number", { ascending: true });
-
-  if (error) {
-    await db.auth.signOut();
-
-    login.hidden = false;
-    dash.hidden = true;
-
-    hint.textContent =
-      "Could not load applicants. Check the administrator permissions and database policies. " +
-      error.message;
-
-    return;
-  }
-
-  rows = data || [];
-  selectedIds.clear();
-  currentPage = 1;
-
-  showDashboard();
-}
-
-function showDashboard() {
-  login.hidden = true;
-  dash.hidden = false;
-
-  render();
-}
-
-/* ------------------------------
-   APPLICANT CONTACT LINKS
--------------------------------- */
-
-function contactLinks(row) {
-  const phone = String(row.phone || "").replace(/\D/g, "");
-  const whatsapp = normalisePhone(row.whatsapp || row.phone);
-
-  return `
-    <div class="contact-link">
-      ${phone
-        ? `<a href="tel:${esc(phone)}">☎ Call ${esc(row.phone)}</a>`
-        : ""}
-      ${whatsapp
-        ? `<a href="https://wa.me/${esc(whatsapp)}" target="_blank" rel="noopener noreferrer">WhatsApp ${esc(row.whatsapp || row.phone)}</a>`
-        : ""}
-    </div>
-  `;
-}
-
-/* ------------------------------
-   APPLICANT CARDS
--------------------------------- */
-
-function applicantCard(row, index) {
-  const number = registrationNumber(row);
+function applicantCard(row) {
   const checked = selectedIds.has(row.id) ? "checked" : "";
-
-  const skills = Array.isArray(row.skills)
-    ? row.skills
-    : [];
+  const skills = Array.isArray(row.skills) ? row.skills : [];
+  const files = getApplicantFiles(row);
 
   const portfolio = row.portfolio
-    ? `<a href="${esc(row.portfolio)}" target="_blank" rel="noopener noreferrer">Open portfolio link</a>`
+    ? `<a href="${esc(row.portfolio)}"
+          target="_blank"
+          rel="noopener noreferrer">
+          Open portfolio link
+       </a>`
     : "—";
-
-  const files = getApplicantFiles(row);
 
   return `
     <article class="applicant" data-id="${esc(row.id)}">
@@ -307,7 +471,7 @@ function applicantCard(row, index) {
         </label>
 
         <span class="applicant-number">
-          REGISTRATION #${esc(number)}
+          REGISTRATION #${esc(registrationNumber(row))}
         </span>
 
       </div>
@@ -317,17 +481,24 @@ function applicantCard(row, index) {
       <div class="meta">
         Set: ${esc(row.set_year || "—")}
         <br>
-        Location: ${esc(row.city || row.location || "—")}
+
+        Location:
+        ${esc(row.city || row.location || "—")}
         ${row.state ? ", " + esc(row.state) : ""}
+
         <br>
         Email: ${esc(row.email || "—")}
         <br>
+
         ${contactLinks(row)}
+
         <br>
         Submitted:
-        ${row.created_at
-          ? esc(new Date(row.created_at).toLocaleString())
-          : "—"}
+        ${
+          row.created_at
+            ? esc(new Date(row.created_at).toLocaleString())
+            : "—"
+        }
       </div>
 
       <div class="tags">
@@ -344,28 +515,39 @@ function applicantCard(row, index) {
 
       <p>
         <b>Uploaded work samples:</b>
-        ${files.length
-          ? `${files.length} file(s) uploaded`
-          : "None"}
+        ${files.length ? `${files.length} file(s) uploaded` : "None"}
       </p>
 
       <div class="applicant-actions">
-        ${files.length
-          ? `<button class="outline preview-files" data-id="${esc(row.id)}">Preview uploaded files</button>`
-          : ""}
-        <button class="outline preview-details" data-id="${esc(row.id)}">View applicant details</button>
+
+        ${
+          files.length
+            ? `<button class="outline preview-files"
+                       data-id="${esc(row.id)}">
+                 Preview uploaded files
+               </button>`
+            : ""
+        }
+
+        <button class="outline preview-details"
+                data-id="${esc(row.id)}">
+          View applicant details
+        </button>
+
       </div>
 
     </article>
   `;
 }
 
-/* ------------------------------
-   SEARCH AND PAGINATION
--------------------------------- */
+/* ==========================================
+   SEARCH
+========================================== */
 
 function filteredRows() {
-  const query = ($("#search").value || "").trim().toLowerCase();
+  const query = ($("#search").value || "")
+    .trim()
+    .toLowerCase();
 
   if (!query) return rows;
 
@@ -389,41 +571,9 @@ function filteredRows() {
   });
 }
 
-function render() {
-  const filtered = filteredRows();
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filtered.length / PAGE_SIZE)
-  );
-
-  currentPage = Math.min(currentPage, totalPages);
-
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = filtered.slice(start, start + PAGE_SIZE);
-
-  $("#count").textContent = rows.length;
-
-  $("#skillCount").textContent = new Set(
-    rows.flatMap(row => row.skills || [])
-  ).size;
-
-  $("#selectedCount").textContent = selectedIds.size;
-
-  const area = $("#applicants");
-
-  if (!filtered.length) {
-    area.innerHTML =
-      '<div class="empty">No applicants found.</div>';
-  } else {
-    area.innerHTML = pageRows
-      .map((row, index) => applicantCard(row, start + index))
-      .join("");
-  }
-
-  renderPagination(filtered.length, totalPages, start, pageRows.length);
-  updateSelectAll(pageRows);
-}
+/* ==========================================
+   PAGINATION
+========================================== */
 
 function renderPagination(total, totalPages, start, visibleCount) {
   const container = $("#pagination");
@@ -457,7 +607,11 @@ function renderPagination(total, totalPages, start, visibleCount) {
     button.onclick = () => {
       currentPage = page;
       render();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
     };
 
     numbers.appendChild(button);
@@ -479,6 +633,52 @@ function updateSelectAll(pageRows) {
   selectAll.indeterminate =
     pageRows.some(row => selectedIds.has(row.id)) &&
     !selectAll.checked;
+}
+
+function render() {
+  const filtered = filteredRows();
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filtered.length / PAGE_SIZE)
+  );
+
+  currentPage = Math.min(currentPage, totalPages);
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+
+  const pageRows = filtered.slice(
+    start,
+    start + PAGE_SIZE
+  );
+
+  $("#count").textContent = rows.length;
+
+  $("#skillCount").textContent = new Set(
+    rows.flatMap(row => row.skills || [])
+  ).size;
+
+  $("#selectedCount").textContent = selectedIds.size;
+
+  const area = $("#applicants");
+
+  if (!filtered.length) {
+    area.innerHTML =
+      '<div class="empty">No applicants found.</div>';
+  } else {
+    area.innerHTML = pageRows
+      .map(row => applicantCard(row))
+      .join("");
+  }
+
+  renderPagination(
+    filtered.length,
+    totalPages,
+    start,
+    pageRows.length
+  );
+
+  updateSelectAll(pageRows);
 }
 
 $("#search").oninput = () => {
@@ -507,12 +707,17 @@ $("#nextPage").onclick = () => {
 
 $("#goPage").onclick = () => {
   const requested = Number($("#pageInput").value);
+
   const totalPages = Math.max(
     1,
     Math.ceil(filteredRows().length / PAGE_SIZE)
   );
 
-  if (!Number.isInteger(requested) || requested < 1 || requested > totalPages) {
+  if (
+    !Number.isInteger(requested) ||
+    requested < 1 ||
+    requested > totalPages
+  ) {
     notify(`Enter a page number between 1 and ${totalPages}.`);
     return;
   }
@@ -522,15 +727,19 @@ $("#goPage").onclick = () => {
 };
 
 $("#pageInput").addEventListener("keydown", event => {
-  if (event.key === "Enter") $("#goPage").click();
+  if (event.key === "Enter") {
+    $("#goPage").click();
+  }
 });
 
-/* ------------------------------
+/* ==========================================
    SELECT APPLICANTS
--------------------------------- */
+========================================== */
 
 $("#applicants").addEventListener("change", event => {
-  if (!event.target.classList.contains("applicant-check")) return;
+  if (!event.target.classList.contains("applicant-check")) {
+    return;
+  }
 
   const id = event.target.dataset.id;
 
@@ -545,8 +754,13 @@ $("#applicants").addEventListener("change", event => {
 
 $("#selectAll").onchange = event => {
   const filtered = filteredRows();
+
   const start = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = filtered.slice(start, start + PAGE_SIZE);
+
+  const pageRows = filtered.slice(
+    start,
+    start + PAGE_SIZE
+  );
 
   pageRows.forEach(row => {
     if (event.target.checked) {
@@ -559,22 +773,49 @@ $("#selectAll").onchange = event => {
   render();
 };
 
+function selectedRows() {
+  return rows.filter(row => selectedIds.has(row.id));
+}
+
+/* ==========================================
+   OPEN EXPORT WINDOW
+========================================== */
+
+function openExportModal(scope) {
+  exportScope = scope;
+
+  const records = exportRecords();
+
+  if (!records.length) {
+    notify("There are no applicants to export.");
+    return;
+  }
+
+  $("#exportModal").hidden = false;
+}
+
+$("#export").onclick = () => {
+  openExportModal("all");
+};
+
 $("#downloadSelected").onclick = () => {
   if (!selectedIds.size) {
     notify("Select at least one applicant first.");
     return;
   }
 
-  $("#exportModal").hidden = false;
+  openExportModal("selected");
 };
 
-function selectedRows() {
-  return rows.filter(row => selectedIds.has(row.id));
+function exportRecords() {
+  return exportScope === "selected"
+    ? selectedRows()
+    : rows;
 }
 
-/* ------------------------------
-   FILE PREVIEW MODAL
--------------------------------- */
+/* ==========================================
+   FILE PREVIEW
+========================================== */
 
 async function openFilePreview(row) {
   const files = getApplicantFiles(row);
@@ -592,7 +833,11 @@ async function openFilePreview(row) {
   $("#previewSubtitle").textContent =
     `Registration #${registrationNumber(row)}`;
 
+  $("#prevFile").hidden = false;
+  $("#nextFile").hidden = false;
+
   $("#previewModal").hidden = false;
+
   $("#previewContent").innerHTML =
     '<p class="empty">Loading uploaded files…</p>';
 
@@ -607,10 +852,15 @@ async function openFilePreview(row) {
     }
 
     currentFileIndex = 0;
+
     displayPreviewFile();
+
   } catch (error) {
-    $("#previewContent").innerHTML =
-      `<p class="empty">Could not load this file: ${esc(error.message)}</p>`;
+    $("#previewContent").innerHTML = `
+      <p class="empty">
+        Could not load this file: ${esc(error.message)}
+      </p>
+    `;
   }
 }
 
@@ -619,7 +869,10 @@ function displayPreviewFile() {
 
   if (!file) return;
 
-  const extension = file.name.split(".").pop().toLowerCase();
+  const extension = file.name
+    .split(".")
+    .pop()
+    .toLowerCase();
 
   const isImage =
     file.type.startsWith("image/") ||
@@ -652,7 +905,9 @@ function displayPreviewFile() {
       <div class="empty">
         <h3>${esc(file.name)}</h3>
         <p>This file format may not display directly in your browser.</p>
-        <a href="${esc(file.url)}" target="_blank" rel="noopener noreferrer">
+        <a href="${esc(file.url)}"
+           target="_blank"
+           rel="noopener noreferrer">
           Open file
         </a>
       </div>
@@ -665,6 +920,7 @@ function displayPreviewFile() {
     `${currentFileIndex + 1} of ${currentFiles.length}`;
 
   $("#prevFile").disabled = currentFileIndex === 0;
+
   $("#nextFile").disabled =
     currentFileIndex >= currentFiles.length - 1;
 }
@@ -686,30 +942,10 @@ $("#nextFile").onclick = () => {
 $("#closePreview").onclick = () => {
   $("#previewModal").hidden = true;
   $("#previewContent").innerHTML = "";
+
   currentFiles = [];
+  currentFileIndex = 0;
 };
-
-$("#applicants").addEventListener("click", event => {
-  const previewButton = event.target.closest(".preview-files");
-  const detailsButton = event.target.closest(".preview-details");
-
-  if (!previewButton && !detailsButton) return;
-
-  const id = (previewButton || detailsButton).dataset.id;
-  const row = rows.find(item => String(item.id) === String(id));
-
-  if (!row) return;
-
-  if (previewButton) {
-    openFilePreview(row);
-  } else {
-    openApplicantDetails(row);
-  }
-});
-
-/* ------------------------------
-   APPLICANT DETAILS
--------------------------------- */
 
 function openApplicantDetails(row) {
   const fields = [
@@ -751,15 +987,37 @@ function openApplicantDetails(row) {
   `;
 
   $("#previewCounter").textContent = "";
+
   $("#prevFile").hidden = true;
   $("#nextFile").hidden = true;
 
   $("#previewModal").hidden = false;
 }
 
-/* ------------------------------
+$("#applicants").addEventListener("click", event => {
+  const fileButton = event.target.closest(".preview-files");
+  const detailsButton = event.target.closest(".preview-details");
+
+  if (!fileButton && !detailsButton) return;
+
+  const id = (fileButton || detailsButton).dataset.id;
+
+  const row = rows.find(item =>
+    String(item.id) === String(id)
+  );
+
+  if (!row) return;
+
+  if (fileButton) {
+    openFilePreview(row);
+  } else {
+    openApplicantDetails(row);
+  }
+});
+
+/* ==========================================
    DELETE APPLICANTS
--------------------------------- */
+========================================== */
 
 $("#deleteSelected").onclick = () => {
   if (!selectedIds.size) {
@@ -784,6 +1042,7 @@ $("#confirmDelete").onclick = async () => {
   if (!pendingDeleteIds.length) return;
 
   const button = $("#confirmDelete");
+
   button.disabled = true;
   button.textContent = "Deleting…";
 
@@ -792,7 +1051,6 @@ $("#confirmDelete").onclick = async () => {
       pendingDeleteIds.includes(row.id)
     );
 
-    // Remove uploaded files from Supabase Storage first.
     const filePaths = targets.flatMap(row =>
       getApplicantFiles(row).map(file => file.path)
     );
@@ -829,23 +1087,26 @@ $("#confirmDelete").onclick = async () => {
     pendingDeleteIds.forEach(id => selectedIds.delete(id));
 
     $("#deleteModal").hidden = true;
-    pendingDeleteIds = [];
 
+    pendingDeleteIds = [];
     currentPage = 1;
+
     render();
 
     notify("Selected applicant records deleted.");
+
   } catch (error) {
     notify(error.message);
+
   } finally {
     button.disabled = false;
     button.textContent = "Delete permanently";
   }
 };
 
-/* ------------------------------
+/* ==========================================
    EXPORT FIELD HELPERS
--------------------------------- */
+========================================== */
 
 function exportFields(row) {
   const fields = [
@@ -857,7 +1118,12 @@ function exportFields(row) {
     ["Email Address", row.email],
     ["State", row.state],
     ["City", row.city],
-    ["Skills", Array.isArray(row.skills) ? row.skills.join(", ") : row.skills],
+    [
+      "Skills",
+      Array.isArray(row.skills)
+        ? row.skills.join(", ")
+        : row.skills
+    ],
     ["Bio", row.bio],
     ["Experience", row.experience],
     ["Portfolio", row.portfolio]
@@ -870,21 +1136,9 @@ function exportFields(row) {
   );
 }
 
-function exportRecords() {
-  const chosen = selectedRows();
-
-  return chosen.length ? chosen : rows;
-}
-
-function safeFileName(value) {
-  return String(value || "applicant")
-    .replace(/[^a-z0-9-_]/gi, "_")
-    .replace(/_+/g, "_");
-}
-
-/* ------------------------------
+/* ==========================================
    EXCEL EXPORT
--------------------------------- */
+========================================== */
 
 $("#exportExcel").onclick = async () => {
   const records = exportRecords();
@@ -902,6 +1156,7 @@ $("#exportExcel").onclick = async () => {
     );
 
     const worksheet = XLSX.utils.json_to_sheet(data);
+
     const workbook = XLSX.utils.book_new();
 
     XLSX.utils.book_append_sheet(
@@ -915,15 +1170,18 @@ $("#exportExcel").onclick = async () => {
       "CACSF-Alumni-Applicants.xlsx"
     );
 
+    $("#exportModal").hidden = true;
+
     notify("Excel file prepared.");
+
   } catch (error) {
     notify("Excel export failed: " + error.message);
   }
 };
 
-/* ------------------------------
-   WORD EXPORT
--------------------------------- */
+/* ==========================================
+   MICROSOFT WORD EXPORT
+========================================== */
 
 $("#exportWord").onclick = () => {
   const records = exportRecords();
@@ -935,7 +1193,11 @@ $("#exportWord").onclick = () => {
 
   const tables = records.map(row => `
     <h2>${esc(row.full_name || "Applicant")}</h2>
-    <p><b>Registration #${esc(registrationNumber(row))}</b></p>
+
+    <p>
+      <b>Registration #${esc(registrationNumber(row))}</b>
+    </p>
+
     <table>
       ${exportFields(row).map(([label, value]) => `
         <tr>
@@ -944,6 +1206,7 @@ $("#exportWord").onclick = () => {
         </tr>
       `).join("")}
     </table>
+
     <br>
   `).join("<hr>");
 
@@ -952,35 +1215,45 @@ $("#exportWord").onclick = () => {
     <html>
     <head>
       <meta charset="UTF-8">
+
       <title>CACSF Alumni Applicants</title>
+
       <style>
         body {
           font-family: Arial, sans-serif;
           color: #29243a;
           padding: 25px;
         }
-        h1 { color: #6415f5; }
-        h2 { color: #6415f5; }
+
+        h1, h2 {
+          color: #6415f5;
+        }
+
         table {
           border-collapse: collapse;
           width: 100%;
           margin-bottom: 20px;
         }
+
         th, td {
           border: 1px solid #ddd;
           padding: 9px;
           text-align: left;
           vertical-align: top;
         }
+
         th {
           background: #f0eaff;
           width: 32%;
         }
       </style>
     </head>
+
     <body>
       <h1>CACSF Alumni Fellowship Media Unit</h1>
+
       <h2>Volunteer Applicants</h2>
+
       ${tables}
     </body>
     </html>
@@ -991,44 +1264,67 @@ $("#exportWord").onclick = () => {
     { type: "application/msword" }
   );
 
-  downloadBlob(blob, "CACSF-Alumni-Applicants.doc");
+  downloadBlob(
+    blob,
+    "CACSF-Alumni-Applicants.doc"
+  );
+
+  $("#exportModal").hidden = true;
+
   notify("Word document prepared.");
 };
 
-/* ------------------------------
-   APPLICANT DESIGN FOR IMAGE/PDF
--------------------------------- */
+/* ==========================================
+   DESIGNED APPLICANT DOCUMENT
+========================================== */
 
 function applicantDesign(row) {
   const fields = exportFields(row);
 
   return `
     <div class="export-page">
+
       <div class="export-top">
         <div class="export-brand">CACSF</div>
-        <div class="export-unit">ALUMNI FELLOWSHIP<br>MEDIA UNIT</div>
+
+        <div class="export-unit">
+          ALUMNI FELLOWSHIP<br>
+          MEDIA UNIT
+        </div>
       </div>
 
       <div class="export-heading">
+
         <span>VOLUNTEER APPLICATION</span>
+
         <h1>${esc(row.full_name || "Applicant")}</h1>
-        <p>Registration #${esc(registrationNumber(row))}</p>
+
+        <p>
+          Registration #${esc(registrationNumber(row))}
+        </p>
+
       </div>
 
       <div class="export-details">
+
         ${fields
-          .filter(([label]) => label !== "Full Name" && label !== "Registration Number")
+          .filter(([label]) =>
+            label !== "Full Name" &&
+            label !== "Registration Number"
+          )
           .map(([label, value]) => `
             <div class="export-field">
               <div>${esc(label)}</div>
               <p>${esc(value)}</p>
             </div>
           `).join("")}
+
       </div>
 
       <div class="export-footer">
         CACSF Alumni Fellowship Media Unit
       </div>
+
     </div>
   `;
 }
@@ -1045,6 +1341,7 @@ function exportStyles() {
       font-family: Arial, sans-serif;
       border: 1px solid #eee;
     }
+
     .export-top {
       display: flex;
       justify-content: space-between;
@@ -1052,11 +1349,13 @@ function exportStyles() {
       padding-bottom: 22px;
       border-bottom: 4px solid #c7ff32;
     }
+
     .export-brand {
       font-size: 34px;
       font-weight: 900;
       color: #6415f5;
     }
+
     .export-unit {
       font-size: 12px;
       line-height: 1.5;
@@ -1064,6 +1363,7 @@ function exportStyles() {
       text-align: right;
       color: #6415f5;
     }
+
     .export-heading {
       background: #6415f5;
       color: #fff;
@@ -1071,34 +1371,40 @@ function exportStyles() {
       margin: 35px 0;
       border-radius: 18px;
     }
+
     .export-heading span {
       color: #c7ff32;
       font-size: 12px;
       font-weight: bold;
       letter-spacing: 2px;
     }
+
     .export-heading h1 {
       font-size: 36px;
       line-height: 1.2;
       margin: 16px 0 10px;
       color: #fff;
     }
+
     .export-heading p {
       margin: 0;
       color: #e4d7ff;
       font-size: 15px;
     }
+
     .export-details {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 15px;
     }
+
     .export-field {
       padding: 17px;
       border: 1px solid #e8e4f0;
       border-radius: 10px;
       overflow-wrap: anywhere;
     }
+
     .export-field div {
       color: #6415f5;
       font-size: 11px;
@@ -1106,11 +1412,13 @@ function exportStyles() {
       text-transform: uppercase;
       margin-bottom: 8px;
     }
+
     .export-field p {
       margin: 0;
       font-size: 14px;
       line-height: 1.5;
     }
+
     .export-footer {
       margin-top: 45px;
       padding-top: 15px;
@@ -1130,6 +1438,7 @@ async function createExportCanvas(row) {
   wrapper.style.left = "-10000px";
   wrapper.style.top = "0";
   wrapper.style.width = "800px";
+
   wrapper.innerHTML = `
     <style>${exportStyles()}</style>
     ${applicantDesign(row)}
@@ -1138,7 +1447,7 @@ async function createExportCanvas(row) {
   document.body.appendChild(wrapper);
 
   try {
-    const canvas = await html2canvas(
+    return await html2canvas(
       wrapper.querySelector(".export-page"),
       {
         scale: 2,
@@ -1147,15 +1456,14 @@ async function createExportCanvas(row) {
       }
     );
 
-    return canvas;
   } finally {
     wrapper.remove();
   }
 }
 
-/* ------------------------------
-   IMAGE EXPORT
--------------------------------- */
+/* ==========================================
+   INDIVIDUAL IMAGE EXPORT
+========================================== */
 
 $("#exportImages").onclick = async () => {
   const records = exportRecords();
@@ -1166,32 +1474,90 @@ $("#exportImages").onclick = async () => {
   }
 
   try {
-    await loadExportLibraries();
+    /*
+      For multiple applicants, prepare one PDF with each
+      applicant on a separate page instead of triggering
+      multiple browser downloads.
+    */
 
-    for (const row of records) {
-      const canvas = await createExportCanvas(row);
-
-      const blob = await new Promise(resolve =>
-        canvas.toBlob(resolve, "image/png")
-      );
-
-      if (!blob) continue;
-
-      downloadBlob(
-        blob,
-        `CACSF-${safeFileName(row.full_name)}-${registrationNumber(row)}.png`
-      );
+    if (records.length > 1) {
+      await exportRecordsAsPDF(records);
+      return;
     }
 
-    notify("Applicant image export completed.");
+    const row = records[0];
+
+    const canvas = await createExportCanvas(row);
+
+    const blob = await new Promise(resolve =>
+      canvas.toBlob(resolve, "image/png")
+    );
+
+    if (!blob) {
+      throw new Error("Could not create applicant image.");
+    }
+
+    downloadBlob(
+      blob,
+      `CACSF-${safeFileName(row.full_name)}-${registrationNumber(row)}.png`
+    );
+
+    $("#exportModal").hidden = true;
+
+    notify("Applicant image prepared.");
+
   } catch (error) {
     notify("Image export failed: " + error.message);
   }
 };
 
-/* ------------------------------
+/* ==========================================
    PDF EXPORT
--------------------------------- */
+========================================== */
+
+async function exportRecordsAsPDF(records) {
+  await loadExportLibraries();
+
+  const { jsPDF } = window.jspdf;
+
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
+  });
+
+  for (let index = 0; index < records.length; index++) {
+    const canvas = await createExportCanvas(records[index]);
+
+    const image = canvas.toDataURL("image/png");
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    const ratio = Math.min(
+      pageWidth / canvas.width,
+      pageHeight / canvas.height
+    );
+
+    const width = canvas.width * ratio;
+    const height = canvas.height * ratio;
+
+    if (index > 0) {
+      pdf.addPage();
+    }
+
+    pdf.addImage(
+      image,
+      "PNG",
+      (pageWidth - width) / 2,
+      5,
+      width,
+      height
+    );
+  }
+
+  pdf.save("CACSF-Alumni-Applicants.pdf");
+}
 
 $("#exportPDF").onclick = async () => {
   const records = exportRecords();
@@ -1202,99 +1568,62 @@ $("#exportPDF").onclick = async () => {
   }
 
   try {
-    await loadExportLibraries();
+    await exportRecordsAsPDF(records);
 
-    const { jsPDF } = window.jspdf;
+    $("#exportModal").hidden = true;
 
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4"
-    });
-
-    for (let index = 0; index < records.length; index++) {
-      const canvas = await createExportCanvas(records[index]);
-
-      const image = canvas.toDataURL("image/png");
-      const pageWidth = 210;
-      const pageHeight = 297;
-
-      const ratio = Math.min(
-        pageWidth / canvas.width,
-        pageHeight / canvas.height
-      );
-
-      const width = canvas.width * ratio;
-      const height = canvas.height * ratio;
-
-      if (index > 0) pdf.addPage();
-
-      pdf.addImage(
-        image,
-        "PNG",
-        (pageWidth - width) / 2,
-        5,
-        width,
-        height
-      );
-    }
-
-    pdf.save("CACSF-Alumni-Applicants.pdf");
     notify("PDF file prepared.");
+
   } catch (error) {
     notify("PDF export failed: " + error.message);
   }
 };
 
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-
-  anchor.href = url;
-  anchor.download = filename;
-
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
-/* ------------------------------
-   EXPORT MODAL
--------------------------------- */
+/* ==========================================
+   CLOSE EXPORT MODAL
+========================================== */
 
 $("#closeExport").onclick = () => {
   $("#exportModal").hidden = true;
 };
 
-/* ------------------------------
+/* ==========================================
    LOGOUT
--------------------------------- */
+========================================== */
 
 $("#logout").onclick = async () => {
-  if (db) await db.auth.signOut();
+  if (db) {
+    const { error } = await db.auth.signOut();
+
+    if (error) {
+      notify("Could not sign out: " + error.message);
+      return;
+    }
+  }
 
   rows = [];
   selectedIds.clear();
   adminRole = null;
 
-  dash.hidden = true;
-  login.hidden = false;
-
   $("#email").value = "";
   $("#password").value = "";
 
-  hint.textContent = "You have signed out.";
+  showLogin("You have signed out.");
 };
 
-/* ------------------------------
+/* ==========================================
    START DASHBOARD
--------------------------------- */
+========================================== */
 
 if (cloud) {
+  /*
+    This runs every time the page loads.
+    It checks for the previously saved Supabase session.
+  */
   checkAdminSession();
+
 } else {
-  hint.textContent =
-    "Supabase is not configured. Live administrator sign-in is unavailable.";
+  showLogin(
+    "Supabase is not configured. Live administrator sign-in is unavailable."
+  );
 }
