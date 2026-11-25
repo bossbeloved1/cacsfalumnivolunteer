@@ -49,8 +49,8 @@
 .top .brand img {
   display:block;
   width:auto;
-  height:150px;
-  max-width:200%;
+  height:200px;
+  max-width:250%;
   object-fit:contain;
 }
 
