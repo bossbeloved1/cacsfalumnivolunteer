@@ -1,4 +1,3 @@
-
 "use strict";
 
 /* =========================================
@@ -162,7 +161,7 @@ const places = {
 
   'Ekiti': [
     'Ado-Ekiti', 'Ikere-Ekiti', 'Iyin-Ekiti',
-    'Ijero-Ekiti', 'Oye-Ekiti', 'Ikole-Ekiti',
+    'Ijero-Ekiti', 'Oye-Ekiti', 'Otun-Ekiti', 'Ikole-Ekiti',
     'Emure-Ekiti', 'Ilawe-Ekiti'
   ],
 
@@ -373,6 +372,11 @@ function showClosedRegistration() {
     .classList.add('show');
 }
 
+/*
+  When two applicants have selected Graphic Designer,
+  disable that option without displaying a FULL message.
+*/
+
 function updateGraphicDesignerOption(count) {
   graphicDesignerFull = count >= 2;
 
@@ -384,30 +388,13 @@ function updateGraphicDesignerOption(count) {
 
   const checkbox = label.querySelector('input');
 
-  let fullText = label.querySelector('.skill-full');
-
   if (graphicDesignerFull) {
     checkbox.checked = false;
     checkbox.disabled = true;
-
     label.classList.add('unavailable');
-
-    if (!fullText) {
-      fullText = document.createElement('small');
-
-      fullText.className = 'skill-full';
-      fullText.textContent = 'FULL — 2 applicants selected';
-
-      label.append(fullText);
-    }
   } else {
     checkbox.disabled = false;
-
     label.classList.remove('unavailable');
-
-    if (fullText) {
-      fullText.remove();
-    }
   }
 }
 
@@ -512,11 +499,6 @@ document.querySelector('#continueBtn')
     document.body.classList.remove('gate-locked');
     document.body.classList.remove('modal-open');
 
-    /*
-      Check again after Continue.
-      If registration is full, show the closed message.
-    */
-
     const available = await refreshCapacity();
 
     if (!available && capacityLoaded) {
@@ -566,11 +548,6 @@ form.addEventListener('submit', async event => {
     return;
   }
 
-  /*
-    Check Graphic Designer availability again
-    before uploading files.
-  */
-
   const files = [...fileInput.files];
 
   if (files.length > 10) {
@@ -612,7 +589,7 @@ form.addEventListener('submit', async event => {
     location: `${city}, ${state}`,
     bio: formData.get('bio'),
     skills,
-    portfolio: formData.get('portfolio') || '',
+    portfolio: formData.get('portfolio'),
     experience: formData.get('experience'),
     portfolio_files: [],
     created_at: new Date().toISOString()
@@ -687,8 +664,6 @@ form.addEventListener('submit', async event => {
       throw error;
     }
 
-    /* Show success message */
-
     form.reset();
 
     citySelect.innerHTML =
@@ -699,11 +674,6 @@ form.addEventListener('submit', async event => {
     fileList.textContent = '';
 
     successModal.classList.add('show');
-
-    /*
-      Refresh capacity after successful submission.
-      This updates remaining places and skill availability.
-    */
 
     await refreshCapacity();
 
