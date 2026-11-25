@@ -1,52 +1,746 @@
-const skillOptions=['Graphic Designer','Content Designer','Content Writer','Copywriter','Scriptwriter','Video Editor','Videographer','Photographer','Website Developer','Web Designer','Technical Support','Social Media Manager','Digital Marketer','Motion Graphics Designer','Animator','Sound Engineer','Livestream / Broadcast','Audio Engineer','UI/UX Designer','Brand Designer','Other'];
-const skillWrap=document.querySelector('#skills');skillOptions.forEach(s=>{skillWrap.insertAdjacentHTML('beforeend',`<label class="skill"><input type="checkbox" name="skills" value="${s}"> ${s}</label>`)});
-document.querySelector('#year').textContent=new Date().getFullYear();
-// Alumni sets run from 1995/1996 through the current academic set.
-const setSelect=document.querySelector('#setYear');for(let y=1995;y<=new Date().getFullYear();y++){const o=document.createElement('option');o.value=`${y}/${y+1}`;o.textContent=`${y}/${y+1}`;setSelect.append(o)}
-// Nigerian states and commonly recognised cities/towns in each state.
-const places={
-'Abia':['Aba','Umuahia','Ohafia','Arochukwu','Bende','Isiala Ngwa','Isuikwuato','Obingwa','Umunneochi'],
-'Adamawa':['Yola','Mubi','Jimeta','Numan','Ganye','Gombi','Michika','Fufore','Hong'],
-'Akwa Ibom':['Uyo','Eket','Ikot Ekpene','Oron','Abak','Etinan','Itu','Ikot Abasi','Ibeno'],
-'Anambra':['Awka','Onitsha','Nnewi','Ekwulobia','Ihiala','Ogidi','Ozubulu','Otuocha','Abagana'],
-'Bauchi':['Bauchi','Azare','Misau','Jama’are','Ningi','Katagum','Dass','Tafawa Balewa'],
-'Bayelsa':['Yenagoa','Brass','Ogbia','Nembe','Sagbama','Kaiama','Oporoma','Amassoma'],
-'Benue':['Makurdi','Gboko','Otukpo','Katsina-Ala','Adikpo','Vandeikya','Aliade','Logo','Ugbokolo'],
-'Borno':['Maiduguri','Biu','Bama','Dikwa','Monguno','Gwoza','Konduga','Damboa'],
-'Cross River':['Calabar','Ikom','Ogoja','Ugep','Obudu','Akamkpa','Obubra','Bakassi'],
-'Delta':['Asaba','Warri','Sapele','Ughelli','Effurun','Agbor','Oleh','Ozoro','Abraka','Kwale'],
-'Ebonyi':['Abakaliki','Afikpo','Onueke','Ezzamgbo','Ishielu','Uburu','Onicha'],
-'Edo':['Benin City','Auchi','Ekpoma','Irrua','Uromi','Igarra','Sabongida-Ora','Ubiaja'],
-'Ekiti':['Ado-Ekiti','Ikere-Ekiti','Iyin-Ekiti','Ijero-Ekiti','Oye-Ekiti','Ikole-Ekiti','Emure-Ekiti','Ilawe-Ekiti'],
-'Enugu':['Enugu','Nsukka','Agbani','Udi','Oji River','Awgu','Eha Amufu','Nkanu'],
-'Gombe':['Gombe','Kaltungo','Billiri','Bajoga','Dukku','Deba','Kumo','Pindiga'],
-'Imo':['Owerri','Orlu','Okigwe','Mbaise','Oguta','Mbano','Nkwerre','Isu'],
-'Jigawa':['Dutse','Hadejia','Kazaure','Gumel','Ringim','Birnin Kudu','Gwaram','Auyo'],
-'Kaduna':['Kaduna','Zaria','Kafanchan','Kachia','Saminaka','Birnin Gwari','Jaji','Zonkwa'],
-'Kano':['Kano','Wudil','Gwarzo','Bichi','Rano','Dawakin Kudu','Karaye','Kura'],
-'Katsina':['Katsina','Daura','Funtua','Malumfashi','Dutsin-Ma','Kankia','Jibia','Mani'],
-'Kebbi':['Birnin Kebbi','Argungu','Yauri','Zuru','Kamba','Jega','Koko','Dakingari'],
-'Kogi':['Lokoja','Okene','Kabba','Idah','Ankpa','Anyigba','Ajaokuta','Dekina'],
-'Kwara':['Ilorin','Offa','Jebba','Lafiagi','Omu-Aran','Patigi','Kaiama','Share'],
-'Lagos':['Ikeja','Lagos Island','Victoria Island','Lekki','Epe','Badagry','Ikorodu','Surulere','Yaba','Agege','Alimosho','Ojo','Festac','Apapa'],
-'Nasarawa':['Lafia','Keffi','Karu','Akwanga','Nasarawa','Doma','Wamba','Toto'],
-'Niger':['Minna','Suleja','Bida','Kontagora','New Bussa','Lapai','Mokwa','Kagara'],
-'Ogun':['Abeokuta','Ijebu-Ode','Sagamu','Ota','Ilaro','Ayetoro','Ifo','Ijebu-Igbo','Owode'],
-'Ondo':['Akure','Ondo','Owo','Ikare-Akoko','Okitipupa','Ore','Idanre','Igbokoda'],
-'Osun':['Osogbo','Ile-Ife','Ilesa','Ede','Iwo','Ikirun','Ejigbo','Oshogbo','Gbongan'],
-'Oyo':['Ibadan','Ogbomoso','Oyo','Iseyin','Saki','Eruwa','Igbo-Ora','Kishi','Fiditi'],
-'Plateau':['Jos','Bukuru','Barkin Ladi','Pankshin','Shendam','Mangu','Langtang','Vom'],
-'Rivers':['Port Harcourt','Obio-Akpor','Bonny','Eleme','Okrika','Bori','Ahoada','Omoku','Degema'],
-'Sokoto':['Sokoto','Tambuwal','Wurno','Bodinga','Gwadabawa','Illela','Kware','Yabo'],
-'Taraba':['Jalingo','Wukari','Bali','等','Gembu','Serti','Takum','Zing','Karim Lamido'].filter(x=>x!=='等'),
-'Yobe':['Damaturu','Potiskum','Gashua','Nguru','Geidam','Buni Yadi','Fika','Gujba'],
-'Zamfara':['Gusau','Kaura Namoda','Talata Mafara','Anka','Bungudu','Maru','Tsafe','Zurmi'],
-'Federal Capital Territory':['Abuja','Garki','Wuse','Maitama','Asokoro','Gwarinpa','Kubwa','Lugbe','Kuje','Bwari','Nyanya','Jikwoyi']
+
+"use strict";
+
+/* =========================================
+   CACSF ALUMNI FELLOWSHIP MEDIA UNIT
+   PUBLIC APPLICATION WEBSITE
+========================================= */
+
+const skillOptions = [
+  'Graphic Designer',
+  'Content Designer',
+  'Content Writer',
+  'Copywriter',
+  'Scriptwriter',
+  'Video Editor',
+  'Videographer',
+  'Photographer',
+  'Website Developer',
+  'Web Designer',
+  'Technical Support',
+  'Social Media Manager',
+  'Digital Marketer',
+  'Motion Graphics Designer',
+  'Animator',
+  'Sound Engineer',
+  'Livestream / Broadcast',
+  'Audio Engineer',
+  'UI/UX Designer',
+  'Brand Designer',
+  'Other'
+];
+
+const skillWrap = document.querySelector('#skills');
+const form = document.querySelector('#application');
+const fileInput = document.querySelector('#portfolioFiles');
+const fileList = document.querySelector('#fileList');
+const stateSelect = document.querySelector('#state');
+const citySelect = document.querySelector('#city');
+const statusBox = document.querySelector('#registrationStatus');
+
+const disclaimer = document.querySelector('#disclaimer');
+const successModal = document.querySelector('#success');
+const closedModal = document.querySelector('#registrationClosed');
+
+const submitButton = form.querySelector('.submit');
+
+let registrationOpen = false;
+let graphicDesignerFull = false;
+let capacityLoaded = false;
+
+/* =========================================
+   SUPABASE CONNECTION
+========================================= */
+
+const cfg = window.CACSF_CONFIG || {};
+
+const cloud = Boolean(
+  cfg.supabaseUrl &&
+  cfg.supabaseAnonKey &&
+  window.supabase
+);
+
+const sb = cloud
+  ? window.supabase.createClient(
+      cfg.supabaseUrl,
+      cfg.supabaseAnonKey
+    )
+  : null;
+
+/* =========================================
+   CURRENT YEAR
+========================================= */
+
+document.querySelector('#year').textContent =
+  new Date().getFullYear();
+
+/* =========================================
+   ALUMNI SETS
+========================================= */
+
+const setSelect = document.querySelector('#setYear');
+
+for (
+  let y = 1995;
+  y <= new Date().getFullYear();
+  y++
+) {
+  const option = document.createElement('option');
+
+  option.value = `${y}/${y + 1}`;
+  option.textContent = `${y}/${y + 1}`;
+
+  setSelect.append(option);
+}
+
+/* =========================================
+   NIGERIAN STATES AND CITIES
+========================================= */
+
+const places = {
+  'Abia': [
+    'Aba', 'Umuahia', 'Ohafia', 'Arochukwu',
+    'Bende', 'Isiala Ngwa', 'Isuikwuato',
+    'Obingwa', 'Umunneochi'
+  ],
+
+  'Adamawa': [
+    'Yola', 'Mubi', 'Jimeta', 'Numan',
+    'Ganye', 'Gombi', 'Michika', 'Fufore', 'Hong'
+  ],
+
+  'Akwa Ibom': [
+    'Uyo', 'Eket', 'Ikot Ekpene', 'Oron',
+    'Abak', 'Etinan', 'Itu', 'Ikot Abasi', 'Ibeno'
+  ],
+
+  'Anambra': [
+    'Awka', 'Onitsha', 'Nnewi', 'Ekwulobia',
+    'Ihiala', 'Ogidi', 'Ozubulu', 'Otuocha', 'Abagana'
+  ],
+
+  'Bauchi': [
+    'Bauchi', 'Azare', 'Misau', 'Jama’are',
+    'Ningi', 'Katagum', 'Dass', 'Tafawa Balewa'
+  ],
+
+  'Bayelsa': [
+    'Yenagoa', 'Brass', 'Ogbia', 'Nembe',
+    'Sagbama', 'Kaiama', 'Oporoma', 'Amassoma'
+  ],
+
+  'Benue': [
+    'Makurdi', 'Gboko', 'Otukpo', 'Katsina-Ala',
+    'Adikpo', 'Vandeikya', 'Aliade', 'Logo', 'Ugbokolo'
+  ],
+
+  'Borno': [
+    'Maiduguri', 'Biu', 'Bama', 'Dikwa',
+    'Monguno', 'Gwoza', 'Konduga', 'Damboa'
+  ],
+
+  'Cross River': [
+    'Calabar', 'Ikom', 'Ogoja', 'Ugep',
+    'Obudu', 'Akamkpa', 'Obubra', 'Bakassi'
+  ],
+
+  'Delta': [
+    'Asaba', 'Warri', 'Sapele', 'Ughelli',
+    'Effurun', 'Agbor', 'Oleh', 'Ozoro',
+    'Abraka', 'Kwale'
+  ],
+
+  'Ebonyi': [
+    'Abakaliki', 'Afikpo', 'Onueke',
+    'Ezzamgbo', 'Ishielu', 'Uburu', 'Onicha'
+  ],
+
+  'Edo': [
+    'Benin City', 'Auchi', 'Ekpoma', 'Irrua',
+    'Uromi', 'Igarra', 'Sabongida-Ora', 'Ubiaja'
+  ],
+
+  'Ekiti': [
+    'Ado-Ekiti', 'Ikere-Ekiti', 'Iyin-Ekiti',
+    'Ijero-Ekiti', 'Oye-Ekiti', 'Ikole-Ekiti',
+    'Emure-Ekiti', 'Ilawe-Ekiti'
+  ],
+
+  'Enugu': [
+    'Enugu', 'Nsukka', 'Agbani', 'Udi',
+    'Oji River', 'Awgu', 'Eha Amufu', 'Nkanu'
+  ],
+
+  'Gombe': [
+    'Gombe', 'Kaltungo', 'Billiri', 'Bajoga',
+    'Dukku', 'Deba', 'Kumo', 'Pindiga'
+  ],
+
+  'Imo': [
+    'Owerri', 'Orlu', 'Okigwe', 'Mbaise',
+    'Oguta', 'Mbano', 'Nkwerre', 'Isu'
+  ],
+
+  'Jigawa': [
+    'Dutse', 'Hadejia', 'Kazaure', 'Gumel',
+    'Ringim', 'Birnin Kudu', 'Gwaram', 'Auyo'
+  ],
+
+  'Kaduna': [
+    'Kaduna', 'Zaria', 'Kafanchan', 'Kachia',
+    'Saminaka', 'Birnin Gwari', 'Jaji', 'Zonkwa'
+  ],
+
+  'Kano': [
+    'Kano', 'Wudil', 'Gwarzo', 'Bichi',
+    'Rano', 'Dawakin Kudu', 'Karaye', 'Kura'
+  ],
+
+  'Katsina': [
+    'Katsina', 'Daura', 'Funtua', 'Malumfashi',
+    'Dutsin-Ma', 'Kankia', 'Jibia', 'Mani'
+  ],
+
+  'Kebbi': [
+    'Birnin Kebbi', 'Argungu', 'Yauri', 'Zuru',
+    'Kamba', 'Jega', 'Koko', 'Dakingari'
+  ],
+
+  'Kogi': [
+    'Lokoja', 'Okene', 'Kabba', 'Idah',
+    'Ankpa', 'Anyigba', 'Ajaokuta', 'Dekina'
+  ],
+
+  'Kwara': [
+    'Ilorin', 'Offa', 'Jebba', 'Lafiagi',
+    'Omu-Aran', 'Patigi', 'Kaiama', 'Share'
+  ],
+
+  'Lagos': [
+    'Ikeja', 'Lagos Island', 'Victoria Island',
+    'Lekki', 'Epe', 'Badagry', 'Ikorodu',
+    'Surulere', 'Yaba', 'Agege', 'Alimosho',
+    'Ojo', 'Festac', 'Apapa'
+  ],
+
+  'Nasarawa': [
+    'Lafia', 'Keffi', 'Karu', 'Akwanga',
+    'Nasarawa', 'Doma', 'Wamba', 'Toto'
+  ],
+
+  'Niger': [
+    'Minna', 'Suleja', 'Bida', 'Kontagora',
+    'New Bussa', 'Lapai', 'Mokwa', 'Kagara'
+  ],
+
+  'Ogun': [
+    'Abeokuta', 'Ijebu-Ode', 'Sagamu', 'Ota',
+    'Ilaro', 'Ayetoro', 'Ifo', 'Ijebu-Igbo', 'Owode'
+  ],
+
+  'Ondo': [
+    'Akure', 'Ondo', 'Owo', 'Ikare-Akoko',
+    'Okitipupa', 'Ore', 'Idanre', 'Igbokoda'
+  ],
+
+  'Osun': [
+    'Osogbo', 'Ile-Ife', 'Ilesa', 'Ede',
+    'Iwo', 'Ikirun', 'Ejigbo', 'Oshogbo', 'Gbongan'
+  ],
+
+  'Oyo': [
+    'Ibadan', 'Ogbomoso', 'Oyo', 'Iseyin',
+    'Saki', 'Eruwa', 'Igbo-Ora', 'Kishi', 'Fiditi'
+  ],
+
+  'Plateau': [
+    'Jos', 'Bukuru', 'Barkin Ladi', 'Pankshin',
+    'Shendam', 'Mangu', 'Langtang', 'Vom'
+  ],
+
+  'Rivers': [
+    'Port Harcourt', 'Obio-Akpor', 'Bonny',
+    'Eleme', 'Okrika', 'Bori', 'Ahoada',
+    'Omoku', 'Degema'
+  ],
+
+  'Sokoto': [
+    'Sokoto', 'Tambuwal', 'Wurno', 'Bodinga',
+    'Gwadabawa', 'Illela', 'Kware', 'Yabo'
+  ],
+
+  'Taraba': [
+    'Jalingo', 'Wukari', 'Bali', 'Gembu',
+    'Serti', 'Takum', 'Zing', 'Karim Lamido'
+  ],
+
+  'Yobe': [
+    'Damaturu', 'Potiskum', 'Gashua', 'Nguru',
+    'Geidam', 'Buni Yadi', 'Fika', 'Gujba'
+  ],
+
+  'Zamfara': [
+    'Gusau', 'Kaura Namoda', 'Talata Mafara',
+    'Anka', 'Bungudu', 'Maru', 'Tsafe', 'Zurmi'
+  ],
+
+  'Federal Capital Territory': [
+    'Abuja', 'Garki', 'Wuse', 'Maitama',
+    'Asokoro', 'Gwarinpa', 'Kubwa', 'Lugbe',
+    'Kuje', 'Bwari', 'Nyanya', 'Jikwoyi'
+  ]
 };
-const stateSelect=document.querySelector('#state'),citySelect=document.querySelector('#city');Object.keys(places).sort((a,b)=>a==='Federal Capital Territory'?1:b==='Federal Capital Territory'?-1:a.localeCompare(b)).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;stateSelect.append(o)});
-stateSelect.addEventListener('change',()=>{citySelect.innerHTML='<option value="">Select city / town</option>';citySelect.disabled=!stateSelect.value;(places[stateSelect.value]||[]).forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;citySelect.append(o)});});
-const fileInput=document.querySelector('#portfolioFiles'),fileList=document.querySelector('#fileList');fileInput.addEventListener('change',()=>{if(fileInput.files.length>10){alert('You can upload a maximum of 10 files.');fileInput.value='';fileList.textContent='';return;}fileList.textContent=[...fileInput.files].map(f=>`${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`).join(' · ');});
-const cfg=window.CACSF_CONFIG||{};const cloud=cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase;const sb=cloud?window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey):null;
-const form=document.querySelector('#application');form.addEventListener('submit',async e=>{e.preventDefault();if(!form.reportValidity())return;const skills=[...form.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value);if(!skills.length){alert('Please select at least one skill.');return;}const files=[...fileInput.files];if(files.length>10){alert('You can upload a maximum of 10 files.');return;}const f=new FormData(form);const state=f.get('state'),city=f.get('city');const data={full_name:f.get('full_name'),set_year:f.get('set_year'),phone:f.get('phone'),whatsapp:f.get('whatsapp'),email:f.get('email'),state,city,location:`${city}, ${state}`,bio:f.get('bio'),skills,portfolio:f.get('portfolio')||'',experience:f.get('experience'),portfolio_files:[],created_at:new Date().toISOString()};const btn=form.querySelector('.submit');btn.disabled=true;btn.textContent='Submitting…';try{if(sb){for(let i=0;i<files.length;i++){const file=files[i],safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_'),path=`${Date.now()}_${i}_${safe}`;const {error:upErr}=await sb.storage.from('applicant-portfolio').upload(path,file,{upsert:false});if(upErr)throw upErr;data.portfolio_files.push({name:file.name,path,size:file.size,type:file.type});}const {error}=await sb.from('applications').insert(data);if(error)throw error;}else{const list=JSON.parse(localStorage.getItem('cacsfApplications')||'[]');data.portfolio_files=files.map(file=>({name:file.name,size:file.size,type:file.type,note:'Demo mode: file metadata only; configure Supabase Storage for actual file uploads.'}));list.push({...data,id:crypto.randomUUID()});localStorage.setItem('cacsfApplications',JSON.stringify(list));}document.querySelector('#success').classList.add('show');form.reset();citySelect.innerHTML='<option value="">Select your state first</option>';citySelect.disabled=true;fileList.textContent='';}catch(err){alert('Submission failed. Please try again. '+(err.message||''));}finally{btn.disabled=false;btn.innerHTML='Submit application <span>↗</span>';}});
-document.querySelector('#closeModal').addEventListener('click',()=>document.querySelector('#success').classList.remove('show'));
-document.querySelector('#continueBtn').addEventListener('click',()=>{document.querySelector('#disclaimer').classList.remove('show');document.body.classList.remove('modal-open');});document.body.classList.add('modal-open');
+
+/* Populate state options */
+
+Object.keys(places)
+  .sort((a, b) =>
+    a === 'Federal Capital Territory'
+      ? 1
+      : b === 'Federal Capital Territory'
+        ? -1
+        : a.localeCompare(b)
+  )
+  .forEach(state => {
+    const option = document.createElement('option');
+
+    option.value = state;
+    option.textContent = state;
+
+    stateSelect.append(option);
+  });
+
+/* Populate cities when state changes */
+
+stateSelect.addEventListener('change', () => {
+  citySelect.innerHTML =
+    '<option value="">Select city / town</option>';
+
+  citySelect.disabled = !stateSelect.value;
+
+  (places[stateSelect.value] || []).forEach(city => {
+    const option = document.createElement('option');
+
+    option.value = city;
+    option.textContent = city;
+
+    citySelect.append(option);
+  });
+});
+
+/* =========================================
+   SKILL OPTIONS
+========================================= */
+
+skillOptions.forEach(skill => {
+  const label = document.createElement('label');
+
+  label.className = 'skill';
+  label.dataset.skill = skill;
+
+  const checkbox = document.createElement('input');
+
+  checkbox.type = 'checkbox';
+  checkbox.name = 'skills';
+  checkbox.value = skill;
+
+  const text = document.createElement('span');
+  text.textContent = skill;
+
+  label.append(checkbox, text);
+  skillWrap.append(label);
+});
+
+/* =========================================
+   REGISTRATION CAPACITY
+========================================= */
+
+function showClosedRegistration() {
+  registrationOpen = false;
+
+  statusBox.className =
+    'registration-status is-closed';
+
+  statusBox.textContent =
+    'Registration has closed for now. You can come back again when registration is open.';
+
+  form.querySelectorAll('input, textarea, select, button')
+    .forEach(element => {
+      element.disabled = true;
+    });
+
+  document.querySelector('#registrationClosed')
+    .classList.add('show');
+}
+
+function updateGraphicDesignerOption(count) {
+  graphicDesignerFull = count >= 2;
+
+  const label = skillWrap.querySelector(
+    '[data-skill="Graphic Designer"]'
+  );
+
+  if (!label) return;
+
+  const checkbox = label.querySelector('input');
+
+  let fullText = label.querySelector('.skill-full');
+
+  if (graphicDesignerFull) {
+    checkbox.checked = false;
+    checkbox.disabled = true;
+
+    label.classList.add('unavailable');
+
+    if (!fullText) {
+      fullText = document.createElement('small');
+
+      fullText.className = 'skill-full';
+      fullText.textContent = 'FULL — 2 applicants selected';
+
+      label.append(fullText);
+    }
+  } else {
+    checkbox.disabled = false;
+
+    label.classList.remove('unavailable');
+
+    if (fullText) {
+      fullText.remove();
+    }
+  }
+}
+
+async function refreshCapacity() {
+  if (!sb) {
+    capacityLoaded = false;
+    registrationOpen = false;
+
+    statusBox.className =
+      'registration-status is-closed';
+
+    statusBox.textContent =
+      'Registration service is temporarily unavailable. Please try again later.';
+
+    return false;
+  }
+
+  try {
+    const { data, error } = await sb.rpc(
+      'get_application_capacity'
+    );
+
+    if (error) throw error;
+
+    const total = Number(data.total);
+    const graphicCount = Number(data.graphic_designer);
+
+    const totalLimit = Number(data.total_limit);
+    const graphicLimit = Number(data.graphic_designer_limit);
+
+    capacityLoaded = true;
+    registrationOpen = data.registration_open === true;
+
+    updateGraphicDesignerOption(graphicCount);
+
+    if (!registrationOpen || total >= totalLimit) {
+      showClosedRegistration();
+      return false;
+    }
+
+    statusBox.className =
+      'registration-status is-open';
+
+    statusBox.textContent =
+      `${totalLimit - total} registration place(s) remaining out of ${totalLimit}. ` +
+      `Graphic Designer: ${graphicCount} of ${graphicLimit} places filled.`;
+
+    return true;
+
+  } catch (error) {
+    console.error('Capacity check failed:', error);
+
+    capacityLoaded = false;
+    registrationOpen = false;
+
+    statusBox.className =
+      'registration-status is-closed';
+
+    statusBox.textContent =
+      'We could not check registration availability. Please refresh the page and try again.';
+
+    return false;
+  }
+}
+
+/* Check availability when the page opens */
+
+refreshCapacity();
+
+/* =========================================
+   PORTFOLIO FILE UPLOAD DISPLAY
+========================================= */
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length > 10) {
+    alert('You can upload a maximum of 10 files.');
+
+    fileInput.value = '';
+    fileList.textContent = '';
+
+    return;
+  }
+
+  fileList.textContent = [...fileInput.files]
+    .map(file =>
+      `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`
+    )
+    .join(' · ');
+});
+
+/* =========================================
+   WELCOME DISCLAIMER
+========================================= */
+
+document.body.classList.add('modal-open');
+
+document.querySelector('#continueBtn')
+  .addEventListener('click', async () => {
+
+    disclaimer.classList.remove('show');
+
+    document.body.classList.remove('gate-locked');
+    document.body.classList.remove('modal-open');
+
+    /*
+      Check again after Continue.
+      If registration is full, show the closed message.
+    */
+
+    const available = await refreshCapacity();
+
+    if (!available && capacityLoaded) {
+      showClosedRegistration();
+    }
+  });
+
+/* =========================================
+   APPLICATION SUBMISSION
+========================================= */
+
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+
+  if (!form.reportValidity()) return;
+
+  if (!sb) {
+    alert(
+      'The registration service is unavailable. Please try again later.'
+    );
+
+    return;
+  }
+
+  if (!capacityLoaded) {
+    const available = await refreshCapacity();
+
+    if (!available) {
+      if (capacityLoaded) showClosedRegistration();
+      return;
+    }
+  }
+
+  if (!registrationOpen) {
+    showClosedRegistration();
+    return;
+  }
+
+  const skills = [
+    ...form.querySelectorAll(
+      'input[name="skills"]:checked'
+    )
+  ].map(input => input.value);
+
+  if (!skills.length) {
+    alert('Please select at least one skill.');
+    return;
+  }
+
+  /*
+    Check Graphic Designer availability again
+    before uploading files.
+  */
+
+  const files = [...fileInput.files];
+
+  if (files.length > 10) {
+    alert('You can upload a maximum of 10 files.');
+    return;
+  }
+
+  const available = await refreshCapacity();
+
+  if (!available) {
+    if (capacityLoaded) showClosedRegistration();
+    return;
+  }
+
+  if (
+    skills.includes('Graphic Designer') &&
+    graphicDesignerFull
+  ) {
+    alert(
+      'Graphic Designer registration is full. Please select another skill.'
+    );
+
+    return;
+  }
+
+  const formData = new FormData(form);
+
+  const state = formData.get('state');
+  const city = formData.get('city');
+
+  const data = {
+    full_name: formData.get('full_name'),
+    set_year: formData.get('set_year'),
+    phone: formData.get('phone'),
+    whatsapp: formData.get('whatsapp'),
+    email: formData.get('email'),
+    state,
+    city,
+    location: `${city}, ${state}`,
+    bio: formData.get('bio'),
+    skills,
+    portfolio: formData.get('portfolio') || '',
+    experience: formData.get('experience'),
+    portfolio_files: [],
+    created_at: new Date().toISOString()
+  };
+
+  submitButton.disabled = true;
+  submitButton.textContent = 'Submitting…';
+
+  try {
+
+    /* Upload portfolio files */
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
+      const safeName = file.name.replace(
+        /[^a-zA-Z0-9._-]/g,
+        '_'
+      );
+
+      const path =
+        `${Date.now()}_${i}_${safeName}`;
+
+      const { error: uploadError } = await sb
+        .storage
+        .from('applicant-portfolio')
+        .upload(path, file, {
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      data.portfolio_files.push({
+        name: file.name,
+        path,
+        size: file.size,
+        type: file.type
+      });
+    }
+
+    /* Submit application to Supabase */
+
+    const { error } = await sb
+      .from('applications')
+      .insert(data);
+
+    if (error) {
+
+      const errorMessage = (
+        error.message || ''
+      ).toUpperCase();
+
+      if (
+        errorMessage.includes('REGISTRATION_CLOSED')
+      ) {
+        showClosedRegistration();
+        return;
+      }
+
+      if (
+        errorMessage.includes('GRAPHIC_DESIGN_FULL')
+      ) {
+        alert(
+          'Graphic Designer registration has just filled up. Please choose another skill and submit again.'
+        );
+
+        await refreshCapacity();
+
+        return;
+      }
+
+      throw error;
+    }
+
+    /* Show success message */
+
+    form.reset();
+
+    citySelect.innerHTML =
+      '<option value="">Select your state first</option>';
+
+    citySelect.disabled = true;
+
+    fileList.textContent = '';
+
+    successModal.classList.add('show');
+
+    /*
+      Refresh capacity after successful submission.
+      This updates remaining places and skill availability.
+    */
+
+    await refreshCapacity();
+
+  } catch (error) {
+
+    console.error('Application submission error:', error);
+
+    alert(
+      'Submission failed. Please try again. ' +
+      (error.message || '')
+    );
+
+    await refreshCapacity();
+
+  } finally {
+
+    submitButton.disabled = false;
+
+    submitButton.innerHTML =
+      'Submit application <span>↗</span>';
+  }
+});
+
+/* =========================================
+   CLOSE SUCCESS POPUP
+========================================= */
+
+document.querySelector('#closeModal')
+  .addEventListener('click', () => {
+    successModal.classList.remove('show');
+  });
+
+/* =========================================
+   CLOSE REGISTRATION POPUP
+========================================= */
+
+document.querySelector('#closeRegistration')
+  .addEventListener('click', () => {
+    closedModal.classList.remove('show');
+  });
