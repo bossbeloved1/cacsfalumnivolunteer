@@ -1,400 +1,131 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CACSF Media Admin</title>
-
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="admin.css">
 </head>
-
 <body>
-
-  <!-- ADMIN HEADER -->
   <header class="top">
     <a class="brand" href="admin.html">
-      <img
-        src="assets/logoextension.png"
-        alt="CACSF Logo"
-        onerror="this.style.display='none'"
-      >
-      <span>
-        CACSF
-        <small>MEDIA ADMIN</small>
-      </span>
+      <img src="assets/logoextension.png" alt="CACSF Logo" onerror="this.style.display='none'">
+      <span>CACSF<small>MEDIA ADMIN</small></span>
     </a>
   </header>
 
   <main class="admin-wrap">
-
-    <!-- DASHBOARD INTRODUCTION -->
     <section class="admin-hero">
-      <div class="eyebrow">
-        <span class="dot"></span>
-        ADMIN DASHBOARD
-      </div>
-
+      <div class="eyebrow"><span class="dot"></span> ADMIN DASHBOARD</div>
       <h1>Applicants <em>overview.</em></h1>
-
       <p>Review, search and manage volunteer applications.</p>
     </section>
 
-    <!-- ADMIN LOGIN -->
     <section id="login" class="login-card">
-
       <h2>Admin access</h2>
-
       <p>Sign in with an authorised Supabase admin account.</p>
-
-      <label>
-        Email
-        <input
-          id="email"
-          type="email"
-          placeholder="Admin email"
-          autocomplete="username"
-          required
-        >
+      <label>Email
+        <input id="email" type="email" placeholder="Admin email" autocomplete="username" required>
       </label>
-
-      <label>
-        Password
-        <input
-          id="password"
-          type="password"
-          placeholder="Password"
-          autocomplete="current-password"
-          required
-        >
+      <label>Password
+        <span class="password-wrap">
+          <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+          <button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" aria-pressed="false">Show</button>
+        </span>
       </label>
-
-      <button id="loginBtn" class="submit">
-        Sign in
-      </button>
-
+      <button id="loginBtn" class="submit">Sign in</button>
       <p id="loginHint" class="hint" aria-live="polite"></p>
-
     </section>
 
-    <!-- ADMIN DASHBOARD -->
     <section id="dashboard" hidden>
-
-      <!-- STATISTICS AND ACTIONS -->
       <div class="dash-toolbar">
-
         <div class="stats">
-
-          <div class="stat">
-            <small>Total Applicants</small>
-            <strong id="count">0</strong>
-          </div>
-
-          <div class="stat">
-            <small>Skills Represented</small>
-            <strong id="skillCount">0</strong>
-          </div>
-
-          <div class="stat">
-            <small>Selected Applicants</small>
-            <strong id="selectedCount">0</strong>
-          </div>
-
+          <div class="stat"><small>Total Applicants</small><strong id="count">0</strong></div>
+          <div class="stat reviewed-stat"><small>Reviewed</small><strong id="reviewedCount">0</strong></div>
+          <div class="stat"><small>Selected Applicants</small><strong id="selectedCount">0</strong></div>
         </div>
-
         <div class="actions">
-
-          <button id="export" class="outline">
-            Export Applicants ↓
-          </button>
-
-          <button id="logout" class="outline">
-            Sign out
-          </button>
-
+          <div class="dropdown-wrap">
+            <button id="exportAllBtn" class="primary-action" type="button" aria-expanded="false">Export Applicants <span>⌄</span></button>
+            <div id="exportAllMenu" class="dropdown-menu" hidden>
+              <button data-export="excel" data-scope="all">Microsoft Excel (.xlsx)</button>
+              <button data-export="word" data-scope="all">Microsoft Word (.doc)</button>
+              <button data-export="image" data-scope="all">Designed applicant images</button>
+              <button data-export="pdf" data-scope="all">PDF document</button>
+            </div>
+          </div>
+          <button id="logout" class="outline" type="button">Sign out</button>
         </div>
-
       </div>
 
-      <!-- SEARCH -->
       <div class="applicant-controls">
-
-        <input
-          id="search"
-          class="search"
-          type="search"
-          placeholder="Search name, registration number, set, email or skill…"
-        >
-
+        <input id="search" class="search" type="search" placeholder="Search name, registration number, set, email or skill…">
         <div class="selection-actions">
-
-          <label class="select-all-label">
-            <input type="checkbox" id="selectAll">
-            Select all applicants on this page
-          </label>
-
-          <button id="downloadSelected" class="outline" disabled>
-            Download selected
-          </button>
-
-          <button id="deleteSelected" class="outline danger" disabled>
-            Delete selected
-          </button>
-
+          <label class="select-all-label"><input type="checkbox" id="selectAll"> Select all applicants on this page</label>
+          <div class="bulk-actions">
+            <div class="dropdown-wrap">
+              <button id="downloadSelected" class="outline" type="button" disabled>Download selected⌄</button>
+              <div id="selectedExportMenu" class="dropdown-menu" hidden>
+                <button data-export="excel" data-scope="selected">Microsoft Excel (.xlsx)</button>
+                <button data-export="word" data-scope="selected">Microsoft Word (.doc)</button>
+                <button data-export="image" data-scope="selected">Designed applicant images</button>
+                <button data-export="pdf" data-scope="selected">PDF document</button>
+              </div>
+            </div>
+            <button id="deleteSelected" class="outline danger" type="button" disabled>Delete selected</button>
+          </div>
         </div>
-
       </div>
 
-      <!-- APPLICANT LIST -->
       <div class="applicant-list-header">
-
         <h2>Registered Applicants</h2>
-
-        <p id="resultInfo">
-          Showing applicants
-        </p>
-
+        <p id="resultInfo">Showing applicants</p>
       </div>
+      <div id="applicants" class="applicant-list"><div class="empty">Loading applications...</div></div>
 
-      <div id="applicants" class="applicant-list">
-
-        <div class="empty">
-          Loading applications...
-        </div>
-
-      </div>
-
-      <!-- PAGINATION -->
-      <nav
-        id="pagination"
-        class="pagination"
-        aria-label="Applicant pages"
-      >
-
-        <button id="prevPage" class="page-btn" disabled>
-          ← Previous
-        </button>
-
+      <nav id="pagination" class="pagination" aria-label="Applicant pages">
+        <button id="prevPage" class="page-btn" disabled>← Previous</button>
         <div id="pageNumbers" class="page-numbers"></div>
-
-        <div class="page-jump">
-
-          <label for="pageInput">Go to page</label>
-
-          <input
-            id="pageInput"
-            type="number"
-            min="1"
-            placeholder="Page"
-          >
-
-          <button id="goPage" class="page-btn">
-            Go
-          </button>
-
-        </div>
-
-        <button id="nextPage" class="page-btn">
-          Next →
-        </button>
-
+        <div class="page-jump"><label for="pageInput">Go to page</label><input id="pageInput" type="number" min="1" placeholder="Page"><button id="goPage" class="page-btn">Go</button></div>
+        <button id="nextPage" class="page-btn">Next →</button>
       </nav>
-
-      <p class="pagination-info" id="paginationInfo">
-        10 applicants per page
-      </p>
-
+      <p class="pagination-info" id="paginationInfo">10 applicants per page</p>
     </section>
 
-    <!-- DOCUMENT / IMAGE PREVIEW MODAL -->
-    <div
-      id="previewModal"
-      class="preview-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="previewTitle"
-      hidden
-    >
-
+    <div id="previewModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="previewTitle" hidden>
       <div class="preview-box">
-
         <div class="preview-header">
-
-          <div>
-            <h2 id="previewTitle">Applicant Portfolio</h2>
-            <p id="previewSubtitle">Uploaded documents and images</p>
-          </div>
-
-          <button
-            type="button"
-            id="closePreview"
-            class="preview-close"
-            aria-label="Close preview"
-          >
-            &times;
-          </button>
-
+          <div><h2 id="previewTitle">Applicant preview</h2><p id="previewSubtitle"></p></div>
+          <button type="button" id="closePreview" class="preview-close" aria-label="Close">×</button>
         </div>
-
-        <div id="previewContent" class="preview-content">
-
-          <p>Preview will appear here.</p>
-
-        </div>
-
+        <div id="previewContent" class="preview-content"><p>Preview will appear here.</p></div>
         <div class="preview-navigation">
-
-          <button id="prevFile" class="page-btn">
-            ← Previous
-          </button>
-
-          <span id="previewCounter">
-            0 / 0
-          </span>
-
-          <button id="nextFile" class="page-btn">
-            Next →
-          </button>
-
+          <button id="prevFile" class="page-btn">← Previous</button>
+          <span id="previewCounter"></span>
+          <button id="nextFile" class="page-btn">Next →</button>
         </div>
-
       </div>
-
     </div>
 
-    <!-- EXPORT MODAL -->
-    <div
-      id="exportModal"
-      class="export-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="exportTitle"
-      hidden
-    >
-
-      <div class="export-box">
-
-        <div class="export-header">
-
-          <div>
-            <h2 id="exportTitle">Export Applicants</h2>
-            <p>Choose your preferred download format.</p>
-          </div>
-
-          <button
-            id="closeExport"
-            class="preview-close"
-            aria-label="Close export options"
-          >
-            &times;
-          </button>
-
-        </div>
-
-        <div class="export-options">
-
-          <button id="exportExcel" class="export-option">
-            <span class="export-icon">XLS</span>
-            <span>
-              <strong>Microsoft Excel</strong>
-              <small>Applicant details in a spreadsheet.</small>
-            </span>
-          </button>
-
-          <button id="exportWord" class="export-option">
-            <span class="export-icon">DOC</span>
-            <span>
-              <strong>Microsoft Word</strong>
-              <small>Applicant details in an organised table.</small>
-            </span>
-          </button>
-
-          <button id="exportImages" class="export-option">
-            <span class="export-icon">IMG</span>
-            <span>
-              <strong>Designed Applicant Images</strong>
-              <small>Purple-and-white individual applicant designs.</small>
-            </span>
-          </button>
-
-          <button id="exportPDF" class="export-option">
-            <span class="export-icon">PDF</span>
-            <span>
-              <strong>PDF Document</strong>
-              <small>One or multiple applicants, one applicant per page.</small>
-            </span>
-          </button>
-
-        </div>
-
-        <p class="export-note">
-          When applicants are selected, exports will use the selected
-          applicants. Otherwise, they will use the current applicant list.
-        </p>
-
-      </div>
-
-    </div>
-
-    <!-- DELETE CONFIRMATION -->
-    <div
-      id="deleteModal"
-      class="delete-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="deleteTitle"
-      hidden
-    >
-
+    <div id="deleteModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
       <div class="delete-box">
-
         <div class="delete-icon">!</div>
-
-        <h2 id="deleteTitle">Delete Applicants?</h2>
-
-        <p id="deleteMessage">
-          Are you sure you want to delete the selected applications?
-        </p>
-
+        <h2 id="deleteTitle">Delete applicant?</h2>
+        <p id="deleteMessage">This action cannot be undone.</p>
         <div class="delete-actions">
-
-          <button id="cancelDelete" class="outline">
-            Cancel
-          </button>
-
-          <button id="confirmDelete" class="delete-confirm">
-            Yes, Delete
-          </button>
-
+          <button id="cancelDelete" class="outline" type="button">Cancel</button>
+          <button id="confirmDelete" class="delete-confirm" type="button">Yes, delete</button>
         </div>
-
       </div>
-
     </div>
 
-    <!-- NOTIFICATIONS -->
-    <div
-      id="adminToast"
-      class="admin-toast"
-      role="status"
-      aria-live="polite"
-    ></div>
-
-    <footer>
-      © CACSF Alumni Fellowship Media Unit
-    </footer>
-
+    <div id="adminToast" class="admin-toast" role="status" aria-live="polite"></div>
+    <footer>© CACSF Alumni Fellowship Media Unit</footer>
   </main>
 
-  <!-- SUPABASE -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- PROJECT CONFIGURATION -->
   <script src="config.js"></script>
-
-  <!-- ADMIN FUNCTIONALITY -->
   <script src="admin.js"></script>
-
 </body>
 </html>
