@@ -41,7 +41,17 @@
 }
 
 .top .brand span {
-  display: none !important;
+  display:none!important;
+}
+
+/* LOGO SIZE */
+
+.top .brand img {
+  display:block;
+  width:auto;
+  height:90px;
+  max-width:100%;
+  object-fit:contain;
 }
 
 /* LOGIN PAGE */
@@ -1132,6 +1142,10 @@ body.modal-open {
 @media(max-width:700px) {
   .admin-wrap {
     padding:5px 15px 30px;
+  }
+
+  .top .brand img {
+    height:75px;
   }
 
   .login-section {
