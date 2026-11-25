@@ -5,11 +5,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <title>CACSF Media Unit Admin</title>
+
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="admin.css">
 
   <style>
-    /* ADMIN HEADER: LOGO ONLY */
+    /* =================================
+       ADMIN HEADER - LOGO ONLY
+    ================================= */
+
     header.top.admin-top {
       display: flex !important;
       justify-content: center !important;
@@ -18,14 +23,26 @@
       max-width: 100% !important;
       margin: 0 auto !important;
       padding: 25px 20px !important;
+      text-align: center !important;
+    }
+
+    header.top.admin-top::before,
+    header.top.admin-top::after {
+      display: none !important;
+      content: none !important;
     }
 
     header.top.admin-top .admin-brand {
       display: inline-flex !important;
-      align-items: center !important;
       justify-content: center !important;
-      gap: 0 !important;
+      align-items: center !important;
       width: auto !important;
+      height: auto !important;
+      gap: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      font-size: 0 !important;
+      line-height: 0 !important;
       text-decoration: none !important;
     }
 
@@ -35,15 +52,29 @@
       height: 55px !important;
       max-width: 180px !important;
       max-height: 55px !important;
+      margin: 0 !important;
+      padding: 0 !important;
       object-fit: contain !important;
     }
 
     header.top.admin-top .admin-brand span,
     header.top.admin-top .admin-brand small,
+    header.top.admin-top .admin-brand strong,
     header.top.admin-top .admin-brand::before,
     header.top.admin-top .admin-brand::after {
       display: none !important;
       content: none !important;
+    }
+
+    @media (max-width: 650px) {
+      header.top.admin-top {
+        padding: 20px 15px !important;
+      }
+
+      header.top.admin-top .admin-brand img {
+        height: 48px !important;
+        max-height: 48px !important;
+      }
     }
   </style>
 </head>
@@ -51,7 +82,7 @@
 <body>
 
   <!-- LOGO ONLY HEADER -->
-  <header class="top admin-top">
+  <header class="top admin-top" id="adminHeader">
     <a class="admin-brand" href="admin.html" aria-label="CACSF Media Unit">
       <img src="assets/logo.png" alt="CACSF Media Unit Logo">
     </a>
@@ -70,36 +101,64 @@
       <div class="login-card">
 
         <label for="email">Email
-          <input id="email" type="email" placeholder="Admin email" autocomplete="username" required>
+          <input
+            id="email"
+            type="email"
+            placeholder="Admin email"
+            autocomplete="username"
+            required
+          >
         </label>
 
         <label for="password">Password
           <span class="password-wrap">
-            <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-            <button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" aria-pressed="false">Show</button>
+            <input
+              id="password"
+              type="password"
+              placeholder="Password"
+              autocomplete="current-password"
+              required
+            >
+            <button
+              type="button"
+              id="togglePassword"
+              class="password-toggle"
+              aria-label="Show password"
+              aria-pressed="false"
+            >Show</button>
           </span>
         </label>
 
-        <button id="loginBtn" class="submit" type="button">Sign in</button>
+        <button id="loginBtn" class="submit" type="button">
+          Sign in
+        </button>
+
         <p id="loginHint" class="hint" aria-live="polite"></p>
 
       </div>
     </section>
 
+
     <!-- DASHBOARD: ONLY SHOWN AFTER ADMIN LOGIN -->
     <section id="dashboard" hidden>
 
       <section class="admin-hero">
+
         <div class="eyebrow">
           <span class="dot"></span>
           ADMIN DASHBOARD
         </div>
 
         <h1>Applicants <em>overview.</em></h1>
+
         <p>Review, search and manage volunteer applications.</p>
+
       </section>
 
+
+      <!-- DASHBOARD STATISTICS -->
       <div class="dash-toolbar">
+
         <div class="stats">
 
           <div class="stat">
@@ -107,66 +166,141 @@
             <strong id="count">0</strong>
           </div>
 
-          <button class="stat stat-trigger reviewed-stat" id="reviewedStatBtn" type="button" aria-haspopup="dialog" aria-controls="statusListModal">
+          <button
+            class="stat stat-trigger reviewed-stat"
+            id="reviewedStatBtn"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="statusListModal"
+          >
             <small>Reviewed <span aria-hidden="true">↗</span></small>
             <strong id="reviewedCount">0</strong>
           </button>
 
-          <button class="stat stat-trigger not-reviewed-stat" id="notReviewedStatBtn" type="button" aria-haspopup="dialog" aria-controls="statusListModal">
+          <button
+            class="stat stat-trigger not-reviewed-stat"
+            id="notReviewedStatBtn"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="statusListModal"
+          >
             <small>Not Reviewed <span aria-hidden="true">↗</span></small>
             <strong id="notReviewedCount">0</strong>
           </button>
 
         </div>
 
+
+        <!-- DASHBOARD ACTIONS -->
         <div class="actions">
+
           <div class="dropdown-wrap">
-            <button id="exportAllBtn" class="outline export-outline" type="button" aria-expanded="false">
+
+            <button
+              id="exportAllBtn"
+              class="outline export-outline"
+              type="button"
+              aria-expanded="false"
+            >
               <span>Export Applicants</span>
               <span class="dropdown-arrow" aria-hidden="true"></span>
             </button>
 
             <div id="exportAllMenu" class="dropdown-menu" hidden>
-              <button data-export="excel" data-scope="all">Microsoft Excel (.xlsx)</button>
-              <button data-export="word" data-scope="all">Microsoft Word (.doc)</button>
-              <button data-export="image" data-scope="all">Designed applicant images</button>
-              <button data-export="pdf" data-scope="all">PDF document</button>
+              <button data-export="excel" data-scope="all">
+                Microsoft Excel (.xlsx)
+              </button>
+
+              <button data-export="word" data-scope="all">
+                Microsoft Word (.doc)
+              </button>
+
+              <button data-export="image" data-scope="all">
+                Designed applicant images
+              </button>
+
+              <button data-export="pdf" data-scope="all">
+                PDF document
+              </button>
             </div>
+
           </div>
 
-          <button id="logout" class="outline" type="button">Sign out</button>
+          <button id="logout" class="outline" type="button">
+            Sign out
+          </button>
+
         </div>
       </div>
 
+
+      <!-- APPLICANT SEARCH AND SELECTION -->
       <div class="applicant-controls">
-        <input id="search" class="search" type="search" placeholder="Search name, registration number, set, email or skill…">
+
+        <input
+          id="search"
+          class="search"
+          type="search"
+          placeholder="Search name, registration number, set, email or skill…"
+        >
 
         <div class="selection-actions">
+
           <label class="select-all-label">
             <input type="checkbox" id="selectAll">
             Select all applicants on this page
           </label>
 
           <div class="bulk-actions">
+
             <div class="dropdown-wrap">
-              <button id="downloadSelected" class="outline" type="button" disabled>
+
+              <button
+                id="downloadSelected"
+                class="outline"
+                type="button"
+                disabled
+              >
                 <span>Download selected</span>
                 <span class="dropdown-arrow" aria-hidden="true"></span>
               </button>
 
               <div id="selectedExportMenu" class="dropdown-menu" hidden>
-                <button data-export="excel" data-scope="selected">Microsoft Excel (.xlsx)</button>
-                <button data-export="word" data-scope="selected">Microsoft Word (.doc)</button>
-                <button data-export="image" data-scope="selected">Designed applicant images</button>
-                <button data-export="pdf" data-scope="selected">PDF document</button>
+
+                <button data-export="excel" data-scope="selected">
+                  Microsoft Excel (.xlsx)
+                </button>
+
+                <button data-export="word" data-scope="selected">
+                  Microsoft Word (.doc)
+                </button>
+
+                <button data-export="image" data-scope="selected">
+                  Designed applicant images
+                </button>
+
+                <button data-export="pdf" data-scope="selected">
+                  PDF document
+                </button>
+
               </div>
             </div>
 
-            <button id="deleteSelected" class="outline danger" type="button" disabled>Delete selected</button>
+            <button
+              id="deleteSelected"
+              class="outline danger"
+              type="button"
+              disabled
+            >
+              Delete selected
+            </button>
+
           </div>
         </div>
       </div>
 
+
+      <!-- REGISTERED APPLICANTS -->
       <div class="applicant-list-header">
         <h2>Registered Applicants</h2>
         <p id="resultInfo">Showing applicants</p>
@@ -176,31 +310,76 @@
         <div class="empty">Loading applications...</div>
       </div>
 
-      <nav id="pagination" class="pagination" aria-label="Applicant pages">
-        <button id="prevPage" class="page-btn" disabled>← Previous</button>
+
+      <!-- PAGINATION -->
+      <nav
+        id="pagination"
+        class="pagination"
+        aria-label="Applicant pages"
+      >
+
+        <button id="prevPage" class="page-btn" disabled>
+          ← Previous
+        </button>
+
         <div id="pageNumbers" class="page-numbers"></div>
 
         <div class="page-jump">
+
           <label for="pageInput">Go to page</label>
-          <input id="pageInput" type="number" min="1" placeholder="Page">
-          <button id="goPage" class="page-btn">Go</button>
+
+          <input
+            id="pageInput"
+            type="number"
+            min="1"
+            placeholder="Page"
+          >
+
+          <button id="goPage" class="page-btn">
+            Go
+          </button>
+
         </div>
 
-        <button id="nextPage" class="page-btn">Next →</button>
+        <button id="nextPage" class="page-btn">
+          Next →
+        </button>
+
       </nav>
 
-      <p class="pagination-info" id="paginationInfo">10 applicants per page</p>
+      <p class="pagination-info" id="paginationInfo">
+        10 applicants per page
+      </p>
+
     </section>
 
+
     <!-- FILE PREVIEW AND APPLICANT DETAILS -->
-    <div id="previewModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="previewTitle" hidden>
+    <div
+      id="previewModal"
+      class="overlay-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="previewTitle"
+      hidden
+    >
+
       <div class="preview-box">
+
         <div class="preview-header">
+
           <div>
             <h2 id="previewTitle">Applicant preview</h2>
             <p id="previewSubtitle"></p>
           </div>
-          <button type="button" id="closePreview" class="preview-close" aria-label="Close">×</button>
+
+          <button
+            type="button"
+            id="closePreview"
+            class="preview-close"
+            aria-label="Close"
+          >×</button>
+
         </div>
 
         <div id="previewContent" class="preview-content">
@@ -208,48 +387,144 @@
         </div>
 
         <div class="preview-navigation">
-          <button id="prevFile" class="page-btn">← Previous</button>
+
+          <button id="prevFile" class="page-btn">
+            ← Previous
+          </button>
+
           <span id="previewCounter"></span>
-          <button id="nextFile" class="page-btn">Next →</button>
+
+          <button id="nextFile" class="page-btn">
+            Next →
+          </button>
+
         </div>
+
       </div>
     </div>
 
+
     <!-- REVIEW STATUS LIST -->
-    <div id="statusListModal" class="overlay-modal status-list-overlay" role="dialog" aria-modal="true" aria-labelledby="statusListTitle" hidden>
+    <div
+      id="statusListModal"
+      class="overlay-modal status-list-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="statusListTitle"
+      hidden
+    >
+
       <div class="status-list-box">
+
         <div class="preview-header">
+
           <div>
             <h2 id="statusListTitle">Reviewed Applicants</h2>
             <p id="statusListSubtitle"></p>
           </div>
-          <button type="button" id="closeStatusList" class="preview-close" aria-label="Close">×</button>
+
+          <button
+            type="button"
+            id="closeStatusList"
+            class="preview-close"
+            aria-label="Close"
+          >×</button>
+
         </div>
-        <div id="statusListContent" class="status-list-content"></div>
+
+        <div
+          id="statusListContent"
+          class="status-list-content"
+        ></div>
+
       </div>
     </div>
+
 
     <!-- DELETE CONFIRMATION -->
-    <div id="deleteModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
+    <div
+      id="deleteModal"
+      class="overlay-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deleteTitle"
+      hidden
+    >
+
       <div class="delete-box">
+
         <div class="delete-icon">!</div>
+
         <h2 id="deleteTitle">Delete applicant?</h2>
-        <p id="deleteMessage">This action cannot be undone.</p>
+
+        <p id="deleteMessage">
+          This action cannot be undone.
+        </p>
 
         <div class="delete-actions">
-          <button id="cancelDelete" class="outline" type="button">Cancel</button>
-          <button id="confirmDelete" class="delete-confirm" type="button">Yes, delete</button>
+
+          <button id="cancelDelete" class="outline" type="button">
+            Cancel
+          </button>
+
+          <button id="confirmDelete" class="delete-confirm" type="button">
+            Yes, delete
+          </button>
+
         </div>
+
       </div>
     </div>
 
-    <div id="adminToast" class="admin-toast" role="status" aria-live="polite"></div>
 
-    <footer>© CACSF Alumni Fellowship Media Unit</footer>
+    <!-- NOTIFICATION -->
+    <div
+      id="adminToast"
+      class="admin-toast"
+      role="status"
+      aria-live="polite"
+    ></div>
+
+
+    <!-- FOOTER -->
+    <footer>
+      © CACSF Alumni Fellowship Media Unit
+    </footer>
+
   </main>
 
+
+  <!-- HEADER CLEANUP -->
+  <script>
+    (function () {
+      const header = document.getElementById("adminHeader");
+
+      if (!header) return;
+
+      const logo = header.querySelector("img");
+
+      if (!logo) return;
+
+      // Remove all old header content.
+      // Rebuild the header using only the logo image.
+      const link = document.createElement("a");
+
+      link.className = "admin-brand";
+      link.href = "admin.html";
+      link.setAttribute("aria-label", "CACSF Media Unit");
+
+      link.appendChild(logo);
+
+      header.replaceChildren(link);
+    })();
+  </script>
+
+
+  <!-- SUPABASE AND ADMIN SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script src="config.js"></script>
+
   <script src="admin.js"></script>
 
 </body>
