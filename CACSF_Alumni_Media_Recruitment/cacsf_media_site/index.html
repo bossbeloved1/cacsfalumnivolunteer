@@ -1,51 +1,290 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#6415f5"><title>Join the CACSF Alumni Fellowship Media Unit</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6415f5">
+
+  <title>Join the CACSF Alumni Fellowship Media Unit</title>
+
+  <!-- Website favicon -->
+  <link rel="icon" type="image/png" href="assets/logo-extension.png">
+  <link rel="apple-touch-icon" href="assets/logo-extension.png">
+
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <header class="top"><a class="brand" href="#home" aria-label="CACSF Alumni Fellowship Media Unit"><img id="logo" src="assets/logo.png" alt="CACSF logo" onerror="this.style.display='none'"><span>CACSF <small>ALUMNI FELLOWSHIP</small></span></a></header>
+
+<body class="gate-locked">
+
+  <!-- Website header -->
+  <header class="top">
+    <a class="brand" href="#home" aria-label="CACSF Alumni Fellowship">
+      <img
+        id="logo"
+        src="assets/logo.png"
+        alt="CACSF Alumni Fellowship Logo"
+      >
+    </a>
+  </header>
+
   <main class="wrap" id="home">
-    <section class="hero"><div class="eyebrow"><span class="dot"></span> CACSF ALUMNI FELLOWSHIP</div>
-      <h1>Welcome to the<br><em>Media Unit.</em></h1>
-      <p class="hero-lead">Do you have a skill, talent or passion for media? Are you willing to use it to serve God and strengthen our alumni fellowship?</p>
-      <p class="hero-sub">We are bringing together creative, skilled and dedicated CACSF alumni to use their gifts for God's work. Your skills. Your passion. God's work.</p>
-      <div class="hero-mark">CACSF<br><span>MEDIA</span></div>
+
+    <!-- Hero section -->
+    <section class="hero">
+      <div class="eyebrow">
+        <span class="dot"></span>
+        CACSF ALUMNI FELLOWSHIP
+      </div>
+
+      <h1>
+        Welcome to the<br>
+        <em>Media Unit.</em>
+      </h1>
+
+      <p class="hero-lead">
+        Do you have a skill, talent or passion for media?
+        Are you willing to use it to serve God and strengthen
+        our alumni fellowship?
+      </p>
+
+      <p class="hero-sub">
+        We are bringing together creative, skilled and dedicated
+        CACSF alumni to use their gifts for God's work.
+        Your skills. Your passion. God's work.
+      </p>
     </section>
+
+    <!-- Registration availability -->
+    <div id="registrationStatus" class="registration-status" role="status" aria-live="polite">
+      Checking registration availability...
+    </div>
+
+    <!-- Application form -->
     <form id="application" class="form-card">
-      <div class="section-head"><span class="num">01</span><div><h2>About you</h2><p>Tell us who you are and where you belong.</p></div></div>
+
+      <div class="section-head">
+        <span class="num">01</span>
+        <div>
+          <h2>About you</h2>
+          <p>Tell us who you are and where you belong.</p>
+        </div>
+      </div>
+
       <div class="fields">
-        <label>Full name<input name="full_name" placeholder="Enter your full name" required></label>
-        <label>Alumni set / graduation year<select name="set_year" id="setYear" required><option value="">Select your set</option></select></label>
-        <label>Phone number<input name="phone" type="tel" placeholder="e.g. 08012345678" required></label>
-        <label>WhatsApp number<input name="whatsapp" type="tel" placeholder="Your WhatsApp number" required></label>
-        <label>Email address<input name="email" type="email" placeholder="name@example.com" required></label>
-        <label>State of residence<select name="state" id="state" required><option value="">Select state</option></select></label>
-        <label>City / Town<select name="city" id="city" required disabled><option value="">Select your state first</option></select></label>
-        <label class="wide">Brief bio<textarea name="bio" rows="3" placeholder="Tell us briefly about yourself…" required></textarea></label>
+
+        <label>
+          Full name
+          <input name="full_name" placeholder="Enter your full name" required>
+        </label>
+
+        <label>
+          Alumni set / graduation year
+          <select name="set_year" id="setYear" required>
+            <option value="">Select your set</option>
+          </select>
+        </label>
+
+        <label>
+          Phone number
+          <input name="phone" type="tel" placeholder="e.g. 08012345678" required>
+        </label>
+
+        <label>
+          WhatsApp number
+          <input name="whatsapp" type="tel" placeholder="Your WhatsApp number" required>
+        </label>
+
+        <label>
+          Email address
+          <input name="email" type="email" placeholder="name@example.com" required>
+        </label>
+
+        <label>
+          State of residence
+          <select name="state" id="state" required>
+            <option value="">Select state</option>
+          </select>
+        </label>
+
+        <label>
+          City / Town
+          <select name="city" id="city" required disabled>
+            <option value="">Select your state first</option>
+          </select>
+        </label>
+
+        <label class="wide">
+          Brief bio
+          <textarea name="bio" rows="3" placeholder="Tell us briefly about yourself…" required></textarea>
+        </label>
+
       </div>
-      <div class="section-head second"><span class="num">02</span><div><h2>Your skills</h2><p>Select every area where you can serve.</p></div></div>
+
+      <div class="section-head second">
+        <span class="num">02</span>
+        <div>
+          <h2>Your skills</h2>
+          <p>Select every area where you can serve.</p>
+        </div>
+      </div>
+
       <div id="skills" class="skills"></div>
+
       <div class="fields extra">
-        <label class="wide">Portfolio / work samples link <span class="optional">(if available)</span><input name="portfolio" type="url" placeholder="https://yourportfolio.com"></label>
-        <label class="wide upload-label">Upload your work samples <span class="optional">(optional · up to 10 files)</span><input id="portfolioFiles" name="portfolio_files" type="file" accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.zip" multiple><span class="upload-hint">Upload designs, videos, documents or other relevant samples. Maximum 10 files.</span><span id="fileList" class="file-list"></span></label>
-        <label class="wide">Previous experience<textarea name="experience" rows="3" placeholder="Share relevant projects, experience or skills…" required></textarea></label>
+
+        <label class="wide">
+          Portfolio / work samples link
+          <span class="optional">(if available)</span>
+          <input name="portfolio" type="url" placeholder="https://yourportfolio.com">
+        </label>
+
+        <label class="wide upload-label">
+          Upload your work samples
+          <span class="optional">(optional · up to 10 files)</span>
+
+          <input
+            id="portfolioFiles"
+            name="portfolio_files"
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.zip"
+            multiple
+          >
+
+          <span class="upload-hint">
+            Upload designs, videos, documents or other relevant samples.
+            Maximum 10 files.
+          </span>
+
+          <span id="fileList" class="file-list"></span>
+        </label>
+
+        <label class="wide">
+          Previous experience
+          <textarea name="experience" rows="3" placeholder="Share relevant projects, experience or skills…" required></textarea>
+        </label>
+
       </div>
-      <div class="notice"><strong>VOLUNTARY SERVICE</strong><p>Serving in the CACSF Alumni Fellowship Media Unit is voluntary. There is no salary, payment or financial remuneration attached to this service. This is an opportunity to contribute your skills in support of God's work and the growth of our alumni fellowship.</p><label class="agree"><input type="checkbox" name="agreement" required> I understand and agree that this is voluntary, unpaid service.</label></div>
-      <button class="submit" type="submit">Submit application <span>↗</span></button><p class="form-foot">Please complete all required fields before submitting.</p>
+
+      <div class="notice">
+        <strong>VOLUNTARY SERVICE</strong>
+
+        <p>
+          Serving in the CACSF Alumni Fellowship Media Unit is voluntary.
+          There is no salary, payment or financial remuneration attached
+          to this service. This is an opportunity to contribute your skills
+          in support of God's work and the growth of our alumni fellowship.
+        </p>
+
+        <label class="agree">
+          <input type="checkbox" name="agreement" required>
+          I understand and agree that this is voluntary, unpaid service.
+        </label>
+      </div>
+
+      <button class="submit" type="submit">
+        Submit application <span>↗</span>
+      </button>
+
+      <p class="form-foot">
+        Please complete all required fields before submitting.
+      </p>
+
     </form>
-    <footer>© <span id="year"></span> CACSF Alumni Fellowship Media Unit</footer>
+
+    <footer>
+      © <span id="year"></span> CACSF Alumni Fellowship Media Unit
+    </footer>
+
   </main>
-  <div class="modal disclaimer-modal show" id="disclaimer" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">
-    <div class="modal-box disclaimer-box"><div class="warning-icon"><span>!</span></div><div class="modal-kicker">CACSF ALUMNI FELLOWSHIP MEDIA UNIT</div><h2 id="disclaimerTitle">Important disclaimer</h2>
-      <p>Before proceeding, please understand that serving in the CACSF Alumni Fellowship Media Unit is entirely voluntary. This is an opportunity to use your skills, talents and creativity to serve God and contribute to the growth of the alumni body.</p>
-      <p class="disclaimer-emphasis">THIS IS NOT A PAID JOB. There is no salary, payment or financial compensation attached to any role, even if you are selected to serve.</p>
-      <p class="disclaimer-small">By continuing, you confirm that you understand and accept these terms.</p>
-      <button id="continueBtn" class="continue-btn" type="button">Click here to continue <span>→</span></button>
+
+  <!-- Welcome disclaimer: shown before the homepage -->
+  <div
+    class="modal disclaimer-modal show"
+    id="disclaimer"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="disclaimerTitle"
+  >
+    <div class="modal-box disclaimer-box">
+
+      <div class="warning-icon"><span>!</span></div>
+
+      <div class="modal-kicker">
+        CACSF ALUMNI FELLOWSHIP MEDIA UNIT
+      </div>
+
+      <h2 id="disclaimerTitle">Important disclaimer</h2>
+
+      <p>
+        Before proceeding, please understand that serving in the
+        CACSF Alumni Fellowship Media Unit is entirely voluntary.
+        This is an opportunity to use your skills, talents and
+        creativity to serve God and contribute to the growth
+        of the alumni body.
+      </p>
+
+      <p class="disclaimer-emphasis">
+        THIS IS NOT A PAID JOB. There is no salary, payment or
+        financial compensation attached to any role, even if
+        you are selected to serve.
+      </p>
+
+      <p class="disclaimer-small">
+        By continuing, you confirm that you understand and accept these terms.
+      </p>
+
+      <button id="continueBtn" class="continue-btn" type="button">
+        Click here to continue <span>→</span>
+      </button>
+
     </div>
   </div>
-  <div class="modal" id="success" role="dialog" aria-modal="true"><div class="modal-box"><div class="success-icon">✓</div><h2>Application submitted!</h2><p>Thank you for offering your skills to serve. Your application has been received.</p><button id="closeModal" class="submit" type="button">Done</button></div></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js"></script>
-</body></html>
+
+  <!-- Successful application popup -->
+  <div class="modal" id="success" role="dialog" aria-modal="true">
+    <div class="modal-box">
+
+      <div class="success-icon">✓</div>
+
+      <h2>Application submitted!</h2>
+
+      <p>
+        Thank you for offering your skills to serve.
+        Your application has been received.
+      </p>
+
+      <button id="closeModal" class="submit" type="button">
+        Done
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Registration closed popup -->
+  <div class="modal" id="registrationClosed" role="dialog" aria-modal="true">
+    <div class="modal-box">
+
+      <div class="closed-icon">!</div>
+
+      <h2>Registration closed</h2>
+
+      <p>
+        Registration has closed for now.
+        We have received the applications needed at this time.
+        You can come back again when registration is open.
+      </p>
+
+      <button id="closeRegistration" class="submit" type="button">
+        Close
+      </button>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
