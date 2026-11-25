@@ -4,12 +4,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#30006b">
   <title>CACSF Media Admin</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+
   <header class="top">
     <a class="brand" href="admin.html">
       <img src="assets/logoextension.png" alt="CACSF Logo" onerror="this.style.display='none'">
@@ -18,15 +18,11 @@
   </header>
 
   <main class="admin-wrap">
-    <section class="admin-hero">
-      <div class="eyebrow"><span class="dot"></span> ADMIN DASHBOARD</div>
-      <h1>Applicants <em>overview.</em></h1>
-      <p>Review, search and manage volunteer applications.</p>
-    </section>
 
+    <!-- LOGIN PAGE -->
     <section id="login" class="login-card">
-      <h2>Admin access</h2>
-      <p>Sign in with an authorised Supabase admin account.</p>
+      <h2>Welcome back</h2>
+      <p>Sign in to access the CACSF Media Unit admin dashboard.</p>
 
       <label>Email
         <input id="email" type="email" placeholder="Admin email" autocomplete="username" required>
@@ -39,34 +35,52 @@
         </span>
       </label>
 
-      <button id="loginBtn" class="submit">Sign in</button>
+      <button id="loginBtn" class="submit" type="button">Sign in</button>
       <p id="loginHint" class="hint" aria-live="polite"></p>
     </section>
 
+    <!-- DASHBOARD -->
     <section id="dashboard" hidden>
+
+      <section class="admin-hero">
+        <div class="eyebrow">
+          <span class="dot"></span>
+          ADMIN DASHBOARD
+        </div>
+
+        <h1>Applicants <em>overview.</em></h1>
+        <p>Review, search and manage volunteer applications.</p>
+      </section>
+
       <div class="dash-toolbar">
+
         <div class="stats">
+
           <div class="stat">
             <small>Total Applicants</small>
             <strong id="count">0</strong>
           </div>
 
-          <button class="stat stat-trigger reviewed-stat" id="reviewedStatBtn" type="button" aria-haspopup="dialog">
-            <small>Reviewed <span class="stat-hint">View list ↗</span></small>
+          <button class="stat stat-trigger reviewed-stat" id="reviewedStatBtn" type="button" aria-haspopup="dialog" aria-controls="statusListModal">
+            <small>Reviewed <span aria-hidden="true">↗</span></small>
             <strong id="reviewedCount">0</strong>
           </button>
 
-          <button class="stat stat-trigger not-reviewed-stat" id="notReviewedStatBtn" type="button" aria-haspopup="dialog">
-            <small>Not Reviewed <span class="stat-hint">View list ↗</span></small>
+          <button class="stat stat-trigger not-reviewed-stat" id="notReviewedStatBtn" type="button" aria-haspopup="dialog" aria-controls="statusListModal">
+            <small>Not Reviewed <span aria-hidden="true">↗</span></small>
             <strong id="notReviewedCount">0</strong>
           </button>
+
         </div>
 
         <div class="actions">
+
           <div class="dropdown-wrap">
-            <button id="exportAllBtn" class="primary-action" type="button" aria-expanded="false">
-              Export Applicants <span>⌄</span>
+            <button id="exportAllBtn" class="outline export-outline" type="button" aria-expanded="false">
+              <span>Export Applicants</span>
+              <span class="dropdown-arrow" aria-hidden="true">⌄</span>
             </button>
+
             <div id="exportAllMenu" class="dropdown-menu" hidden>
               <button data-export="excel" data-scope="all">Microsoft Excel (.xlsx)</button>
               <button data-export="word" data-scope="all">Microsoft Word (.doc)</button>
@@ -74,30 +88,43 @@
               <button data-export="pdf" data-scope="all">PDF document</button>
             </div>
           </div>
+
           <button id="logout" class="outline" type="button">Sign out</button>
+
         </div>
       </div>
 
       <div class="applicant-controls">
+
         <input id="search" class="search" type="search" placeholder="Search name, registration number, set, email or skill…">
 
         <div class="selection-actions">
+
           <label class="select-all-label">
             <input type="checkbox" id="selectAll">
             Select all applicants on this page
           </label>
 
           <div class="bulk-actions">
+
             <div class="dropdown-wrap">
-              <button id="downloadSelected" class="outline" type="button" disabled>Download selected ⌄</button>
+
+              <button id="downloadSelected" class="outline" type="button" disabled>
+                <span>Download selected</span>
+                <span class="dropdown-arrow" aria-hidden="true">⌄</span>
+              </button>
+
               <div id="selectedExportMenu" class="dropdown-menu" hidden>
                 <button data-export="excel" data-scope="selected">Microsoft Excel (.xlsx)</button>
                 <button data-export="word" data-scope="selected">Microsoft Word (.doc)</button>
                 <button data-export="image" data-scope="selected">Designed applicant images</button>
                 <button data-export="pdf" data-scope="selected">PDF document</button>
               </div>
+
             </div>
+
             <button id="deleteSelected" class="outline danger" type="button" disabled>Delete selected</button>
+
           </div>
         </div>
       </div>
@@ -112,28 +139,39 @@
       </div>
 
       <nav id="pagination" class="pagination" aria-label="Applicant pages">
+
         <button id="prevPage" class="page-btn" disabled>← Previous</button>
+
         <div id="pageNumbers" class="page-numbers"></div>
+
         <div class="page-jump">
           <label for="pageInput">Go to page</label>
           <input id="pageInput" type="number" min="1" placeholder="Page">
           <button id="goPage" class="page-btn">Go</button>
         </div>
+
         <button id="nextPage" class="page-btn">Next →</button>
+
       </nav>
 
       <p class="pagination-info" id="paginationInfo">10 applicants per page</p>
+
     </section>
 
-    <!-- Applicant file preview and applicant details -->
+    <!-- FILE PREVIEW AND APPLICANT DETAILS MODAL -->
     <div id="previewModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="previewTitle" hidden>
+
       <div class="preview-box">
+
         <div class="preview-header">
+
           <div>
             <h2 id="previewTitle">Applicant preview</h2>
             <p id="previewSubtitle"></p>
           </div>
+
           <button type="button" id="closePreview" class="preview-close" aria-label="Close">×</button>
+
         </div>
 
         <div id="previewContent" class="preview-content">
@@ -145,43 +183,58 @@
           <span id="previewCounter"></span>
           <button id="nextFile" class="page-btn">Next →</button>
         </div>
+
       </div>
     </div>
 
-    <!-- Reviewed / Not Reviewed applicant list -->
-    <div id="statusListModal" class="overlay-modal status-overlay" role="dialog" aria-modal="true" aria-labelledby="statusListTitle" hidden>
+    <!-- REVIEW STATUS LIST MODAL -->
+    <div id="statusListModal" class="overlay-modal status-list-overlay" role="dialog" aria-modal="true" aria-labelledby="statusListTitle" hidden>
+
       <div class="status-list-box">
+
         <div class="preview-header">
+
           <div>
-            <h2 id="statusListTitle">Applicants</h2>
-            <p id="statusListSubtitle">Applicant review list</p>
+            <h2 id="statusListTitle">Reviewed Applicants</h2>
+            <p id="statusListSubtitle"></p>
           </div>
+
           <button type="button" id="closeStatusList" class="preview-close" aria-label="Close">×</button>
+
         </div>
+
         <div id="statusListContent" class="status-list-content"></div>
+
       </div>
     </div>
 
-    <!-- Delete confirmation -->
-    <div id="deleteModal" class="overlay-modal delete-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div id="deleteModal" class="overlay-modal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
+
       <div class="delete-box">
+
         <div class="delete-icon">!</div>
+
         <h2 id="deleteTitle">Delete applicant?</h2>
         <p id="deleteMessage">This action cannot be undone.</p>
+
         <div class="delete-actions">
           <button id="cancelDelete" class="outline" type="button">Cancel</button>
           <button id="confirmDelete" class="delete-confirm" type="button">Yes, delete</button>
         </div>
+
       </div>
     </div>
 
     <div id="adminToast" class="admin-toast" role="status" aria-live="polite"></div>
 
     <footer>© CACSF Alumni Fellowship Media Unit</footer>
+
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="admin.js"></script>
+
 </body>
 </html>
