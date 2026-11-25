@@ -4,16 +4,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="admin.css">
+
+  <style>
+    /* ADMIN HEADER: LOGO ONLY */
+    header.top.admin-top {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 auto !important;
+      padding: 25px 20px !important;
+    }
+
+    header.top.admin-top .admin-brand {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0 !important;
+      width: auto !important;
+      text-decoration: none !important;
+    }
+
+    header.top.admin-top .admin-brand img {
+      display: block !important;
+      width: auto !important;
+      height: 55px !important;
+      max-width: 180px !important;
+      max-height: 55px !important;
+      object-fit: contain !important;
+    }
+
+    header.top.admin-top .admin-brand span,
+    header.top.admin-top .admin-brand small,
+    header.top.admin-top .admin-brand::before,
+    header.top.admin-top .admin-brand::after {
+      display: none !important;
+      content: none !important;
+    }
+  </style>
 </head>
+
 <body>
 
-  <header class="top">
-  <a class="brand" href="admin.html" aria-label="CACSF Media Unit">
-    <img src="assets/logo.png" alt="CACSF Media Unit Logo">
-  </a>
-</header>
+  <!-- LOGO ONLY HEADER -->
+  <header class="top admin-top">
+    <a class="admin-brand" href="admin.html" aria-label="CACSF Media Unit">
+      <img src="assets/logo.png" alt="CACSF Media Unit Logo">
+    </a>
+  </header>
 
   <main class="admin-wrap">
 
