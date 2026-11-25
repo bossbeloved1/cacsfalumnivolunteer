@@ -30,21 +30,16 @@
   let rows = [];
   let selectedIds = new Set();
   let currentPage = 1;
-
   let currentFiles = [];
   let currentFileIndex = 0;
   let pendingDeleteIds = [];
-
   let adminRole = null;
   let toastTimer = null;
   let touchStartX = 0;
-
   let savedScrollY = 0;
   let modalCount = 0;
 
-  /* ==========================================
-     GENERAL HELPERS
-  ========================================== */
+  /* GENERAL HELPERS */
 
   const esc = value =>
     String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -137,9 +132,7 @@
         reject(new Error("Could not load an export library."));
       }, { once: true });
 
-      if (!existing) {
-        document.head.appendChild(script);
-      }
+      if (!existing) document.head.appendChild(script);
     });
   }
 
@@ -157,9 +150,7 @@
     );
   }
 
-  /* ==========================================
-     MODAL SCROLL LOCKING
-  ========================================== */
+  /* MODAL SCROLL LOCKING */
 
   function openOverlay(selector) {
     const modal = $(selector);
@@ -170,7 +161,6 @@
       savedScrollY = window.scrollY || window.pageYOffset;
 
       document.body.classList.add("modal-open");
-
       document.body.style.position = "fixed";
       document.body.style.top = `-${savedScrollY}px`;
       document.body.style.left = "0";
@@ -203,9 +193,7 @@
     }
   }
 
-  /* ==========================================
-     AUTHENTICATION
-  ========================================== */
+  /* AUTHENTICATION */
 
   function showLogin(message = "") {
     $("#login").hidden = false;
@@ -223,10 +211,21 @@
     $("#loginHint").textContent =
       "Verifying administrator access…";
 
+    const { data: userData, error: userError } =
+      await db.auth.getUser();
+
+    if (userError || !userData.user) {
+      await db.auth.signOut();
+
+      showLogin("Could not verify your administrator account.");
+      return;
+    }
+
     const { data: admin, error } = await db
       .from("media_admins")
       .select("role")
-      .single();
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
 
     if (error || !admin) {
       await db.auth.signOut();
@@ -313,9 +312,7 @@
   });
 
   $("#password").addEventListener("keydown", event => {
-    if (event.key === "Enter") {
-      $("#loginBtn").click();
-    }
+    if (event.key === "Enter") $("#loginBtn").click();
   });
 
   $("#togglePassword").addEventListener("click", () => {
@@ -323,9 +320,7 @@
     const visible = input.type === "password";
 
     input.type = visible ? "text" : "password";
-
-    $("#togglePassword").textContent =
-      visible ? "Hide" : "Show";
+    $("#togglePassword").textContent = visible ? "Hide" : "Show";
 
     $("#togglePassword").setAttribute(
       "aria-label",
@@ -350,9 +345,7 @@
     });
   }
 
-  /* ==========================================
-     LOAD APPLICANTS
-  ========================================== */
+  /* LOAD APPLICANTS */
 
   async function loadApplicants() {
     $("#loginHint").textContent = "Loading applicants…";
@@ -387,9 +380,7 @@
     showDashboard();
   }
 
-  /* ==========================================
-     CONTACT AND FILE HELPERS
-  ========================================== */
+  /* CONTACT AND FILE HELPERS */
 
   function normalisePhone(number) {
     let value = String(number || "").replace(/\D/g, "");
@@ -443,16 +434,12 @@
     return data.signedUrl;
   }
 
-  /* ==========================================
-     APPLICANT CARD
-  ========================================== */
+  /* APPLICANT CARD */
 
   function applicantCard(row) {
     const id = String(row.id);
 
-    const checked = selectedIds.has(id)
-      ? "checked"
-      : "";
+    const checked = selectedIds.has(id) ? "checked" : "";
 
     const skills = Array.isArray(row.skills)
       ? row.skills
@@ -472,6 +459,7 @@
 
         <div class="applicant-head">
 
+          <!-- TOP LEFT: CHECKBOX AND APPLICANT NAME -->
           <div class="applicant-title">
 
             <label class="round-select" title="Select applicant">
@@ -486,19 +474,23 @@
 
             <div>
               <h3>${esc(row.full_name || "Unnamed applicant")}</h3>
-
-              <div class="applicant-identifiers">
-                <span class="applicant-number">
-                  REGISTRATION #${esc(regNo(row))}
-                </span>
-
-                <span class="review-badge ${reviewed ? "is-reviewed" : "is-unreviewed"}">
-                  ${reviewed ? "✓ Reviewed" : "Not reviewed"}
-                </span>
-              </div>
             </div>
 
           </div>
+
+          <!-- TOP RIGHT: REGISTRATION NUMBER AND REVIEW STATUS -->
+          <div class="applicant-identifiers">
+
+            <span class="applicant-number">
+              REGISTRATION #${esc(regNo(row))}
+            </span>
+
+            <span class="review-badge ${reviewed ? "is-reviewed" : "is-unreviewed"}">
+              ${reviewed ? "✓ Reviewed" : "Not reviewed"}
+            </span>
+
+          </div>
+
         </div>
 
         <div class="meta">
@@ -529,16 +521,6 @@
 
         </div>
 
-        ${
-          skills.length
-            ? `<div class="tags">
-                ${skills.map(skill =>
-                  `<span class="tag">${esc(skill)}</span>`
-                ).join("")}
-              </div>`
-            : ""
-        }
-
         <p><b>Bio:</b> ${esc(row.bio || "—")}</p>
 
         <p><b>Experience:</b> ${esc(row.experience || "—")}</p>
@@ -549,6 +531,17 @@
           <b>Uploaded work samples:</b>
           ${files.length ? `${files.length} file(s) uploaded` : "None"}
         </p>
+
+        <!-- SKILLS ARE KEPT NEAR THE BOTTOM -->
+        ${
+          skills.length
+            ? `<div class="tags">
+                ${skills.map(skill =>
+                  `<span class="tag">${esc(skill)}</span>`
+                ).join("")}
+              </div>`
+            : ""
+        }
 
         <div class="submitted-line">
           <strong>Submitted:</strong>
@@ -590,7 +583,8 @@
               data-id="${esc(id)}"
               type="button"
               aria-expanded="false">
-              Download ⌄
+              <span>Download</span>
+              <span class="dropdown-arrow" aria-hidden="true"></span>
             </button>
 
             <div class="dropdown-menu" hidden>
@@ -626,9 +620,7 @@
     `;
   }
 
-  /* ==========================================
-     SEARCH, SELECTION AND PAGINATION
-  ========================================== */
+  /* SEARCH, SELECTION AND PAGINATION */
 
   function filteredRows() {
     const query = ($("#search").value || "")
@@ -650,7 +642,7 @@
         row.location,
         row.bio,
         row.experience,
-        ...(row.skills || [])
+        ...(Array.isArray(row.skills) ? row.skills : [])
       ];
 
       return values.join(" ").toLowerCase().includes(query);
@@ -800,9 +792,7 @@
   };
 
   $("#pageInput").addEventListener("keydown", event => {
-    if (event.key === "Enter") {
-      $("#goPage").click();
-    }
+    if (event.key === "Enter") $("#goPage").click();
   });
 
   $("#applicants").addEventListener("change", event => {
@@ -838,9 +828,7 @@
     render();
   };
 
-  /* ==========================================
-     REVIEWED / NOT REVIEWED POPUP
-  ========================================== */
+  /* REVIEWED / NOT REVIEWED POPUP */
 
   function openStatusList(reviewed) {
     const list = rows.filter(
@@ -923,15 +911,11 @@
     openDetails(row);
   });
 
-  /* ==========================================
-     DROPDOWN MENUS
-  ========================================== */
+  /* DROPDOWN MENUS */
 
   function closeMenus(except = null) {
     document.querySelectorAll(".dropdown-menu").forEach(menu => {
-      if (menu !== except) {
-        menu.hidden = true;
-      }
+      if (menu !== except) menu.hidden = true;
     });
 
     document.querySelectorAll('[aria-expanded="true"]').forEach(button => {
@@ -955,10 +939,7 @@
   }
 
   $("#exportAllBtn").onclick = () => {
-    toggleMenu(
-      $("#exportAllBtn"),
-      $("#exportAllMenu")
-    );
+    toggleMenu($("#exportAllBtn"), $("#exportAllMenu"));
   };
 
   $("#downloadSelected").onclick = () => {
@@ -967,15 +948,10 @@
       return;
     }
 
-    toggleMenu(
-      $("#downloadSelected"),
-      $("#selectedExportMenu")
-    );
+    toggleMenu($("#downloadSelected"), $("#selectedExportMenu"));
   };
 
-  /* ==========================================
-     APPLICANT ACTIONS
-  ========================================== */
+  /* APPLICANT ACTIONS */
 
   $("#applicants").addEventListener("click", async event => {
     const exportButton = event.target.closest(".individual-export");
@@ -999,10 +975,7 @@
         item => String(item.id) === review.dataset.id
       );
 
-      if (row) {
-        await setReviewed(row, !row.reviewed);
-      }
-
+      if (row) await setReviewed(row, !row.reviewed);
       return;
     }
 
@@ -1038,9 +1011,7 @@
     }
   });
 
-  /* ==========================================
-     SAVE REVIEW STATUS
-  ========================================== */
+  /* SAVE REVIEW STATUS */
 
   async function setReviewed(row, value) {
     const { data, error } = await db
@@ -1050,9 +1021,7 @@
       .select("id, reviewed");
 
     if (error) {
-      notify(
-        "Could not save review status. " + error.message
-      );
+      notify("Could not save review status. " + error.message);
       return;
     }
 
@@ -1064,7 +1033,6 @@
     }
 
     row.reviewed = value;
-
     render();
 
     notify(
@@ -1074,9 +1042,7 @@
     );
   }
 
-  /* ==========================================
-     FILE PREVIEW
-  ========================================== */
+  /* FILE PREVIEW */
 
   function closePreview() {
     closeOverlay("#previewModal");
@@ -1203,9 +1169,7 @@
 
   $("#closePreview").onclick = closePreview;
 
-  /* ==========================================
-     APPLICANT DETAILS
-  ========================================== */
+  /* APPLICANT DETAILS */
 
   function linkifyDetail(label, value) {
     const text = String(value ?? "").trim();
@@ -1213,9 +1177,7 @@
     if (!text) return "—";
 
     if (label === "Email") {
-      return `
-        <a href="mailto:${esc(text)}">${esc(text)}</a>
-      `;
+      return `<a href="mailto:${esc(text)}">${esc(text)}</a>`;
     }
 
     if (label === "WhatsApp number") {
@@ -1252,18 +1214,18 @@
       ["WhatsApp number", row.whatsapp],
       ["State", row.state],
       ["City", row.city || row.location],
-      [
-        "Skills",
-        Array.isArray(row.skills)
-          ? row.skills.join(", ")
-          : row.skills
-      ],
       ["Bio", row.bio],
       ["Experience", row.experience],
       ["Portfolio", row.portfolio],
       [
         "Review status",
         row.reviewed ? "Reviewed" : "Not reviewed"
+      ],
+      [
+        "Skills selected",
+        Array.isArray(row.skills)
+          ? row.skills.join(", ")
+          : row.skills
       ],
       [
         "Submitted",
@@ -1290,15 +1252,12 @@
           )
           .map(([label, value]) => `
             <div class="detail-card ${
-              ["Bio", "Experience", "Portfolio", "Submitted"].includes(label)
+              ["Bio", "Experience", "Portfolio", "Skills selected", "Submitted"].includes(label)
                 ? "wide"
                 : ""
             }">
-
               <small>${esc(label)}</small>
-
               <div>${linkifyDetail(label, value)}</div>
-
             </div>
           `)
           .join("")}
@@ -1314,9 +1273,7 @@
     openOverlay("#previewModal");
   }
 
-  /* ==========================================
-     DELETE APPLICANTS
-  ========================================== */
+  /* DELETE APPLICANTS */
 
   function confirmDelete(ids, message) {
     pendingDeleteIds = ids.map(String);
@@ -1420,9 +1377,7 @@
     }
   };
 
-  /* ==========================================
-     EXPORT DATA
-  ========================================== */
+  /* EXPORT DATA */
 
   function exportFields(row) {
     const fields = [
@@ -1497,84 +1452,84 @@
 
   const exportCss = `
     .export-page {
-      box-sizing: border-box;
-      width: 800px;
-      min-height: 1050px;
-      padding: 52px;
-      background: #fff;
-      color: #29243a;
-      font-family: Arial, sans-serif;
+      box-sizing:border-box;
+      width:800px;
+      min-height:1050px;
+      padding:52px;
+      background:#fff;
+      color:#29243a;
+      font-family:Arial,sans-serif;
     }
 
     .export-page header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 4px solid #c7ff32;
-      padding-bottom: 20px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      border-bottom:4px solid #c7ff32;
+      padding-bottom:20px;
     }
 
     .export-page header b {
-      font-size: 34px;
-      color: #6415f5;
+      font-size:34px;
+      color:#6415f5;
     }
 
     .export-page header span {
-      text-align: right;
-      color: #6415f5;
-      font-size: 12px;
-      font-weight: bold;
+      text-align:right;
+      color:#6415f5;
+      font-size:12px;
+      font-weight:bold;
     }
 
     .export-heading {
-      background: #6415f5;
-      color: #fff;
-      padding: 32px;
-      margin: 32px 0;
-      border-radius: 16px;
+      background:#6415f5;
+      color:#fff;
+      padding:32px;
+      margin:32px 0;
+      border-radius:16px;
     }
 
     .export-heading small {
-      color: #c7ff32;
-      font-weight: bold;
-      letter-spacing: 2px;
+      color:#c7ff32;
+      font-weight:bold;
+      letter-spacing:2px;
     }
 
     .export-heading h1 {
-      font-size: 34px;
-      margin: 14px 0;
+      font-size:34px;
+      margin:14px 0;
     }
 
     .export-fields {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 13px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:13px;
     }
 
     .export-fields article {
-      border: 1px solid #e8e0f3;
-      border-radius: 10px;
-      padding: 14px;
-      overflow-wrap: anywhere;
+      border:1px solid #e8e0f3;
+      border-radius:10px;
+      padding:14px;
+      overflow-wrap:anywhere;
     }
 
     .export-fields small {
-      color: #6415f5;
-      font-weight: bold;
-      text-transform: uppercase;
+      color:#6415f5;
+      font-weight:bold;
+      text-transform:uppercase;
     }
 
     .export-fields p {
-      font-size: 14px;
-      line-height: 1.5;
+      font-size:14px;
+      line-height:1.5;
     }
 
     .export-page footer {
-      margin-top: 40px;
-      border-top: 1px solid #ddd;
-      padding-top: 15px;
-      color: #777;
-      font-size: 12px;
+      margin-top:40px;
+      border-top:1px solid #ddd;
+      padding-top:15px;
+      color:#777;
+      font-size:12px;
     }
   `;
 
@@ -1597,8 +1552,8 @@
       return await html2canvas(
         holder.querySelector(".export-page"),
         {
-          scale: 2,
-          backgroundColor: "#fff"
+          scale:2,
+          backgroundColor:"#fff"
         }
       );
 
@@ -1616,14 +1571,13 @@
     const { jsPDF } = window.jspdf;
 
     const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4"
+      orientation:"portrait",
+      unit:"mm",
+      format:"a4"
     });
 
     for (let index = 0; index < records.length; index++) {
       const canvas = await makeCanvas(records[index]);
-
       const image = canvas.toDataURL("image/png");
 
       const width = 190;
@@ -1637,9 +1591,7 @@
       const imageWidth = canvas.width * ratio;
       const imageHeight = canvas.height * ratio;
 
-      if (index) {
-        pdf.addPage();
-      }
+      if (index) pdf.addPage();
 
       pdf.addImage(
         image,
@@ -1706,31 +1658,31 @@
           <meta charset="utf-8">
           <style>
             body {
-              font-family: Arial;
-              padding: 25px;
-              color: #29243a;
+              font-family:Arial;
+              padding:25px;
+              color:#29243a;
             }
 
-            h1, h2 {
-              color: #6415f5;
+            h1,h2 {
+              color:#6415f5;
             }
 
             table {
-              border-collapse: collapse;
-              width: 100%;
-              margin-bottom: 30px;
+              border-collapse:collapse;
+              width:100%;
+              margin-bottom:30px;
             }
 
-            th, td {
-              border: 1px solid #ddd;
-              padding: 9px;
-              text-align: left;
-              vertical-align: top;
+            th,td {
+              border:1px solid #ddd;
+              padding:9px;
+              text-align:left;
+              vertical-align:top;
             }
 
             th {
-              background: #f0eaff;
-              width: 32%;
+              background:#f0eaff;
+              width:32%;
             }
           </style>
         </head>
@@ -1745,7 +1697,7 @@
 
       downloadBlob(
         new Blob(["\ufeff", doc], {
-          type: "application/msword"
+          type:"application/msword"
         }),
         `${stem}.doc`
       );
@@ -1772,7 +1724,6 @@
     }
 
     closeMenus();
-
     notify("Export prepared successfully.");
   }
 
@@ -1806,9 +1757,7 @@
     }
   });
 
-  /* ==========================================
-     MODAL CLOSE CONTROLS
-  ========================================== */
+  /* MODAL CLOSE CONTROLS */
 
   document.querySelectorAll(".overlay-modal").forEach(modal => {
     modal.addEventListener("click", event => {
@@ -1829,9 +1778,7 @@
 
   document.addEventListener("keydown", event => {
     if (event.key === "Escape") {
-      if (!$("#previewModal").hidden) {
-        closePreview();
-      }
+      if (!$("#previewModal").hidden) closePreview();
 
       if (!$("#deleteModal").hidden) {
         closeOverlay("#deleteModal");
@@ -1844,19 +1791,12 @@
     }
 
     if (!$("#previewModal").hidden) {
-      if (event.key === "ArrowLeft") {
-        moveFile(-1);
-      }
-
-      if (event.key === "ArrowRight") {
-        moveFile(1);
-      }
+      if (event.key === "ArrowLeft") moveFile(-1);
+      if (event.key === "ArrowRight") moveFile(1);
     }
   });
 
-  /* ==========================================
-     SIGN OUT
-  ========================================== */
+  /* SIGN OUT */
 
   $("#logout").onclick = async () => {
     if (db) {
@@ -1878,9 +1818,7 @@
     showLogin("You have signed out.");
   };
 
-  /* ==========================================
-     START ADMIN DASHBOARD
-  ========================================== */
+  /* START ADMIN DASHBOARD */
 
   if (cloud) {
     checkAdminSession();
