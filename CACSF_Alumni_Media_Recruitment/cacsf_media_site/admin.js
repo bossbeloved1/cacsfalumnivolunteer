@@ -1,373 +1,1893 @@
+
 /* CACSF ALUMNI FELLOWSHIP MEDIA UNIT — ADMIN DASHBOARD */
 (() => {
   "use strict";
 
   const config = window.CACSF_CONFIG || {};
-  const cloud = Boolean(config.supabaseUrl && config.supabaseAnonKey && window.supabase);
-  const db = cloud ? window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-  }) : null;
+  const cloud = Boolean(
+    config.supabaseUrl &&
+    config.supabaseAnonKey &&
+    window.supabase
+  );
 
-  const $ = s => document.querySelector(s);
+  const db = cloud
+    ? window.supabase.createClient(
+        config.supabaseUrl,
+        config.supabaseAnonKey,
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        }
+      )
+    : null;
+
+  const $ = selector => document.querySelector(selector);
   const PAGE_SIZE = 10;
-  let rows = [], selectedIds = new Set(), currentPage = 1;
-  let currentFiles = [], currentFileIndex = 0, pendingDeleteIds = [];
-  let adminRole = null, toastTimer = null, touchStartX = 0;
 
-  const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  })[c]);
-  const pad = n => String(n).padStart(3, "0");
-  const regNo = row => row.registration_number == null ? "Pending" : pad(row.registration_number);
-  const safeName = value => String(value || "applicant").replace(/[^a-z0-9-_]/gi, "_").replace(/_+/g, "_");
+  let rows = [];
+  let selectedIds = new Set();
+  let currentPage = 1;
+
+  let currentFiles = [];
+  let currentFileIndex = 0;
+  let pendingDeleteIds = [];
+
+  let adminRole = null;
+  let toastTimer = null;
+  let touchStartX = 0;
+
+  let savedScrollY = 0;
+  let modalCount = 0;
+
+  /* ==========================================
+     GENERAL HELPERS
+  ========================================== */
+
+  const esc = value =>
+    String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[char]);
+
+  const pad = number => String(number).padStart(3, "0");
+
+  const regNo = row =>
+    row.registration_number == null
+      ? "Pending"
+      : pad(row.registration_number);
+
+  const safeName = value =>
+    String(value || "applicant")
+      .replace(/[^a-z0-9-_]/gi, "_")
+      .replace(/_+/g, "_");
+
   function notify(message) {
     const toast = $("#adminToast");
-    if (!toast) return alert(message);
-    toast.textContent = message; toast.classList.add("show");
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 3600);
-  }
-  function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob), a = document.createElement("a");
-    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-  }
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const existing = [...document.scripts].find(s => s.src === src);
-      if (existing?.dataset.loaded === "true") return resolve();
-      const script = existing || Object.assign(document.createElement("script"), {src});
-      script.addEventListener("load", () => { script.dataset.loaded = "true"; resolve(); }, {once:true});
-      script.addEventListener("error", () => reject(new Error("Could not load an export library.")), {once:true});
-      if (!existing) document.head.appendChild(script);
-    });
-  }
-  async function exportLibraries() {
-    await loadScript("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js");
-    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-  }
-  function showLogin(message = "") { $("#login").hidden = false; $("#dashboard").hidden = true; $("#loginHint").textContent = message; }
-  function showDashboard() { $("#login").hidden = true; $("#dashboard").hidden = false; render(); }
 
-  async function authoriseAdmin() {
-    $("#loginHint").textContent = "Verifying administrator access…";
-    const {data: admin, error} = await db.from("media_admins").select("role").single();
-    if (error || !admin) {
-      await db.auth.signOut();
-      showLogin("This account is not authorised to access the CACSF Media Unit dashboard.");
+    if (!toast) {
+      alert(message);
       return;
     }
-    adminRole = admin.role; window.CACSF_ADMIN_ROLE = adminRole;
+
+    toast.textContent = message;
+    toast.classList.add("show");
+
+    clearTimeout(toastTimer);
+
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("show");
+    }, 3600);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = filename;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = [...document.scripts].find(
+        script => script.src === src
+      );
+
+      if (existing?.dataset.loaded === "true") {
+        resolve();
+        return;
+      }
+
+      if (existing && window.XLSX && src.includes("xlsx")) {
+        resolve();
+        return;
+      }
+
+      if (existing && window.html2canvas && src.includes("html2canvas")) {
+        resolve();
+        return;
+      }
+
+      if (existing && window.jspdf && src.includes("jspdf")) {
+        resolve();
+        return;
+      }
+
+      const script = existing ||
+        Object.assign(document.createElement("script"), { src });
+
+      script.addEventListener("load", () => {
+        script.dataset.loaded = "true";
+        resolve();
+      }, { once: true });
+
+      script.addEventListener("error", () => {
+        reject(new Error("Could not load an export library."));
+      }, { once: true });
+
+      if (!existing) {
+        document.head.appendChild(script);
+      }
+    });
+  }
+
+  async function exportLibraries() {
+    await loadScript(
+      "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+    );
+
+    await loadScript(
+      "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+    );
+
+    await loadScript(
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    );
+  }
+
+  /* ==========================================
+     MODAL SCROLL LOCKING
+  ========================================== */
+
+  function openOverlay(selector) {
+    const modal = $(selector);
+
+    if (!modal || !modal.hidden) return;
+
+    if (modalCount === 0) {
+      savedScrollY = window.scrollY || window.pageYOffset;
+
+      document.body.classList.add("modal-open");
+
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${savedScrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
+    }
+
+    modalCount++;
+    modal.hidden = false;
+  }
+
+  function closeOverlay(selector) {
+    const modal = $(selector);
+
+    if (!modal || modal.hidden) return;
+
+    modal.hidden = true;
+    modalCount = Math.max(0, modalCount - 1);
+
+    if (modalCount === 0) {
+      document.body.classList.remove("modal-open");
+
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+
+      window.scrollTo(0, savedScrollY);
+    }
+  }
+
+  /* ==========================================
+     AUTHENTICATION
+  ========================================== */
+
+  function showLogin(message = "") {
+    $("#login").hidden = false;
+    $("#dashboard").hidden = true;
+    $("#loginHint").textContent = message;
+  }
+
+  function showDashboard() {
+    $("#login").hidden = true;
+    $("#dashboard").hidden = false;
+    render();
+  }
+
+  async function authoriseAdmin() {
+    $("#loginHint").textContent =
+      "Verifying administrator access…";
+
+    const { data: admin, error } = await db
+      .from("media_admins")
+      .select("role")
+      .single();
+
+    if (error || !admin) {
+      await db.auth.signOut();
+
+      showLogin(
+        "This account is not authorised to access the CACSF Media Unit dashboard."
+      );
+
+      return;
+    }
+
+    adminRole = admin.role;
+    window.CACSF_ADMIN_ROLE = adminRole;
+
     await loadApplicants();
   }
+
   async function checkAdminSession() {
-    if (!cloud) return showLogin("Supabase is not configured. Live administrator sign-in is unavailable.");
+    if (!cloud) {
+      showLogin(
+        "Supabase is not configured. Live administrator sign-in is unavailable."
+      );
+      return;
+    }
+
     showLogin("Restoring your administrator session…");
+
     try {
-      const {data, error} = await db.auth.getSession();
+      const { data, error } = await db.auth.getSession();
+
       if (error) throw error;
-      if (!data.session) return showLogin("Please sign in to access the admin dashboard.");
+
+      if (!data.session) {
+        showLogin("Please sign in to access the admin dashboard.");
+        return;
+      }
+
       await authoriseAdmin();
-    } catch (error) { showLogin("Could not restore your session: " + error.message); }
+
+    } catch (error) {
+      showLogin("Could not restore your session: " + error.message);
+    }
   }
+
   $("#loginBtn").addEventListener("click", async () => {
-    if (!cloud) return showLogin("Supabase is not configured.");
-    const email = $("#email").value.trim(), password = $("#password").value, button = $("#loginBtn");
-    if (!email || !password) return $("#loginHint").textContent = "Enter your email address and password.";
-    button.disabled = true; button.textContent = "Signing in…"; $("#loginHint").textContent = "Checking administrator access…";
+    if (!cloud) {
+      showLogin("Supabase is not configured.");
+      return;
+    }
+
+    const email = $("#email").value.trim();
+    const password = $("#password").value;
+    const button = $("#loginBtn");
+
+    if (!email || !password) {
+      $("#loginHint").textContent =
+        "Enter your email address and password.";
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Signing in…";
+
+    $("#loginHint").textContent =
+      "Checking administrator access…";
+
     try {
-      const {error} = await db.auth.signInWithPassword({email, password});
+      const { error } = await db.auth.signInWithPassword({
+        email,
+        password
+      });
+
       if (error) throw error;
+
       await authoriseAdmin();
-    } catch (error) { $("#loginHint").textContent = error.message; }
-    finally { button.disabled = false; button.textContent = "Sign in"; }
+
+    } catch (error) {
+      $("#loginHint").textContent = error.message;
+
+    } finally {
+      button.disabled = false;
+      button.textContent = "Sign in";
+    }
   });
-  $("#password").addEventListener("keydown", e => { if (e.key === "Enter") $("#loginBtn").click(); });
+
+  $("#password").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      $("#loginBtn").click();
+    }
+  });
+
   $("#togglePassword").addEventListener("click", () => {
-    const input = $("#password"), visible = input.type === "password";
+    const input = $("#password");
+    const visible = input.type === "password";
+
     input.type = visible ? "text" : "password";
-    $("#togglePassword").textContent = visible ? "Hide" : "Show";
-    $("#togglePassword").setAttribute("aria-label", visible ? "Hide password" : "Show password");
-    $("#togglePassword").setAttribute("aria-pressed", String(visible));
+
+    $("#togglePassword").textContent =
+      visible ? "Hide" : "Show";
+
+    $("#togglePassword").setAttribute(
+      "aria-label",
+      visible ? "Hide password" : "Show password"
+    );
+
+    $("#togglePassword").setAttribute(
+      "aria-pressed",
+      String(visible)
+    );
   });
-  if (cloud) db.auth.onAuthStateChange(event => {
-    if (event === "SIGNED_OUT") { rows = []; selectedIds.clear(); adminRole = null; showLogin("Your administrator session has ended."); }
-  });
+
+  if (cloud) {
+    db.auth.onAuthStateChange(event => {
+      if (event === "SIGNED_OUT") {
+        rows = [];
+        selectedIds.clear();
+        adminRole = null;
+
+        showLogin("Your administrator session has ended.");
+      }
+    });
+  }
+
+  /* ==========================================
+     LOAD APPLICANTS
+  ========================================== */
 
   async function loadApplicants() {
     $("#loginHint").textContent = "Loading applicants…";
-    const {data, error} = await db.from("applications").select("*").order("registration_number", {ascending:true});
+
+    const { data, error } = await db
+      .from("applications")
+      .select("*")
+      .order("registration_number", { ascending: true });
+
     if (error) {
-      $("#login").hidden = true; $("#dashboard").hidden = false;
-      $("#applicants").innerHTML = `<div class="empty"><h3>Unable to load applicants</h3><p>${esc(error.message)}</p><button class="outline" id="retryLoad">Try again</button></div>`;
-      $("#retryLoad").onclick = loadApplicants; return;
+      $("#login").hidden = true;
+      $("#dashboard").hidden = false;
+
+      $("#applicants").innerHTML = `
+        <div class="empty">
+          <h3>Unable to load applicants</h3>
+          <p>${esc(error.message)}</p>
+          <button class="outline" id="retryLoad" type="button">
+            Try again
+          </button>
+        </div>
+      `;
+
+      $("#retryLoad").onclick = loadApplicants;
+      return;
     }
-    rows = data || []; selectedIds.clear(); currentPage = 1; showDashboard();
+
+    rows = data || [];
+    selectedIds.clear();
+    currentPage = 1;
+
+    showDashboard();
   }
+
+  /* ==========================================
+     CONTACT AND FILE HELPERS
+  ========================================== */
 
   function normalisePhone(number) {
     let value = String(number || "").replace(/\D/g, "");
-    if (value.startsWith("0")) value = "234" + value.slice(1);
-    else if (!value.startsWith("234") && value.length === 10) value = "234" + value;
+
+    if (value.startsWith("0")) {
+      value = "234" + value.slice(1);
+    } else if (!value.startsWith("234") && value.length === 10) {
+      value = "234" + value;
+    }
+
     return value;
   }
+
   function contactLinks(row) {
-    const wa = normalisePhone(row.whatsapp || "");
-    return `<div class="contact-link">${wa ? `<a href="https://wa.me/${esc(wa)}" target="_blank" rel="noopener noreferrer">WhatsApp: ${esc(row.whatsapp)}</a>` : `<span>WhatsApp: —</span>`}</div>`;
+    const number = String(row.whatsapp || "").trim();
+    const wa = normalisePhone(number);
+
+    return `
+      <div class="contact-link">
+        <strong>WhatsApp:</strong>
+        ${
+          wa
+            ? `<a href="https://wa.me/${esc(wa)}"
+                 target="_blank"
+                 rel="noopener noreferrer">${esc(number)}</a>`
+            : "—"
+        }
+      </div>
+    `;
   }
+
   function getApplicantFiles(row) {
-    return Array.isArray(row.portfolio_files) ? row.portfolio_files.filter(f => f?.path).map(f => ({
-      name:f.name || "Uploaded work sample", path:f.path, type:f.type || ""
-    })) : [];
+    return Array.isArray(row.portfolio_files)
+      ? row.portfolio_files
+          .filter(file => file?.path)
+          .map(file => ({
+            name: file.name || "Uploaded work sample",
+            path: file.path,
+            type: file.type || ""
+          }))
+      : [];
   }
+
   async function signedUrl(path) {
-    const {data,error} = await db.storage.from("applicant-portfolio").createSignedUrl(path, 3600);
-    if (error) throw error; return data.signedUrl;
+    const { data, error } = await db.storage
+      .from("applicant-portfolio")
+      .createSignedUrl(path, 3600);
+
+    if (error) throw error;
+
+    return data.signedUrl;
   }
+
+  /* ==========================================
+     APPLICANT CARD
+  ========================================== */
 
   function applicantCard(row) {
-    const id = String(row.id), checked = selectedIds.has(id) ? "checked" : "";
-    const skills = Array.isArray(row.skills) ? row.skills : [];
+    const id = String(row.id);
+
+    const checked = selectedIds.has(id)
+      ? "checked"
+      : "";
+
+    const skills = Array.isArray(row.skills)
+      ? row.skills
+      : [];
+
     const files = getApplicantFiles(row);
     const reviewed = row.reviewed === true;
-    const portfolio = row.portfolio ? `<a href="${esc(row.portfolio)}" target="_blank" rel="noopener noreferrer">${esc(row.portfolio)}</a>` : "—";
-    return `<article class="applicant" data-id="${esc(id)}">
-      <div class="applicant-head">
-        <div class="applicant-title">
-          <label class="round-select" title="Select applicant"><input type="checkbox" class="applicant-check" data-id="${esc(id)}" ${checked}><span></span></label>
-          <div><h3>${esc(row.full_name || "Unnamed applicant")}</h3><span class="applicant-number">REGISTRATION #${esc(regNo(row))}</span></div>
-        </div>
-        <span class="review-button ${reviewed ? "is-reviewed" : "is-unreviewed"}">${reviewed ? "✓ Reviewed" : "Not reviewed"}</span>
-      </div>
-      <div class="meta">
-        Set: ${esc(row.set_year || "—")}<br>
-        Location: ${esc(row.city || row.location || "—")}${row.state ? ", " + esc(row.state) : ""}<br>
-        Email: ${row.email ? `<a href="mailto:${esc(row.email)}">${esc(row.email)}</a>` : "—"}<br>
-        Phone: ${esc(row.phone || "—")}<br>
-        ${contactLinks(row)}
-        Submitted: ${row.created_at ? esc(new Date(row.created_at).toLocaleString()) : "—"}
-      </div>
-      ${skills.length ? `<div class="tags">${skills.map(s => `<span class="tag">${esc(s)}</span>`).join("")}</div>` : ""}
-      <p><b>Bio:</b> ${esc(row.bio || "—")}</p>
-      <p><b>Experience:</b> ${esc(row.experience || "—")}</p>
-      <p><b>Portfolio:</b> ${portfolio}</p>
-      <p><b>Uploaded work samples:</b> ${files.length ? `${files.length} file(s) uploaded` : "None"}</p>
-      <div class="applicant-actions">
-        ${files.length ? `<button class="applicant-action preview-files" data-id="${esc(id)}" type="button">Preview uploaded files</button>` : ""}
-        <button class="applicant-action preview-details" data-id="${esc(id)}" type="button">View applicant details</button>
-        <button class="review-button ${reviewed ? "is-unreviewed" : "is-reviewed"} toggle-review" data-id="${esc(id)}" type="button">${reviewed ? "Mark as not reviewed" : "Mark as reviewed"}</button>
-        <div class="dropdown-wrap">
-          <button class="applicant-action individual-export" data-id="${esc(id)}" type="button" aria-expanded="false">Download ⌄</button>
-          <div class="dropdown-menu" hidden>
-            <button data-export="excel" data-id="${esc(id)}">Microsoft Excel (.xlsx)</button>
-            <button data-export="word" data-id="${esc(id)}">Microsoft Word (.doc)</button>
-            <button data-export="image" data-id="${esc(id)}">Designed applicant image</button>
-            <button data-export="pdf" data-id="${esc(id)}">PDF document</button>
+
+    const portfolio = row.portfolio
+      ? `<a href="${esc(row.portfolio)}"
+           target="_blank"
+           rel="noopener noreferrer">${esc(row.portfolio)}</a>`
+      : "—";
+
+    return `
+      <article class="applicant" data-id="${esc(id)}">
+
+        <div class="applicant-head">
+
+          <div class="applicant-title">
+
+            <label class="round-select" title="Select applicant">
+              <input
+                type="checkbox"
+                class="applicant-check"
+                data-id="${esc(id)}"
+                ${checked}
+              >
+              <span></span>
+            </label>
+
+            <div>
+              <h3>${esc(row.full_name || "Unnamed applicant")}</h3>
+
+              <div class="applicant-identifiers">
+                <span class="applicant-number">
+                  REGISTRATION #${esc(regNo(row))}
+                </span>
+
+                <span class="review-badge ${reviewed ? "is-reviewed" : "is-unreviewed"}">
+                  ${reviewed ? "✓ Reviewed" : "Not reviewed"}
+                </span>
+              </div>
+            </div>
+
           </div>
         </div>
-        <button class="applicant-action delete-one" data-id="${esc(id)}" type="button">Delete applicant</button>
-      </div>
-    </article>`;
+
+        <div class="meta">
+
+          <div><strong>Set:</strong> ${esc(row.set_year || "—")}</div>
+
+          <div>
+            <strong>Location:</strong>
+            ${esc(row.city || row.location || "—")}
+            ${row.state ? ", " + esc(row.state) : ""}
+          </div>
+
+          <div>
+            <strong>Email:</strong>
+            ${
+              row.email
+                ? `<a href="mailto:${esc(row.email)}">${esc(row.email)}</a>`
+                : "—"
+            }
+          </div>
+
+          <div>
+            <strong>Phone number:</strong>
+            ${esc(row.phone || "—")}
+          </div>
+
+          ${contactLinks(row)}
+
+        </div>
+
+        ${
+          skills.length
+            ? `<div class="tags">
+                ${skills.map(skill =>
+                  `<span class="tag">${esc(skill)}</span>`
+                ).join("")}
+              </div>`
+            : ""
+        }
+
+        <p><b>Bio:</b> ${esc(row.bio || "—")}</p>
+
+        <p><b>Experience:</b> ${esc(row.experience || "—")}</p>
+
+        <p><b>Portfolio:</b> ${portfolio}</p>
+
+        <p>
+          <b>Uploaded work samples:</b>
+          ${files.length ? `${files.length} file(s) uploaded` : "None"}
+        </p>
+
+        <div class="submitted-line">
+          <strong>Submitted:</strong>
+          ${row.created_at
+            ? esc(new Date(row.created_at).toLocaleString())
+            : "—"}
+        </div>
+
+        <div class="applicant-actions">
+
+          ${
+            files.length
+              ? `<button class="applicant-action preview-files"
+                   data-id="${esc(id)}"
+                   type="button">
+                   Preview uploaded files
+                 </button>`
+              : ""
+          }
+
+          <button
+            class="applicant-action preview-details"
+            data-id="${esc(id)}"
+            type="button">
+            View applicant details
+          </button>
+
+          <button
+            class="review-button ${reviewed ? "is-unreviewed" : "is-reviewed"} toggle-review"
+            data-id="${esc(id)}"
+            type="button">
+            ${reviewed ? "Mark as not reviewed" : "Mark as reviewed"}
+          </button>
+
+          <div class="dropdown-wrap">
+
+            <button
+              class="applicant-action individual-export"
+              data-id="${esc(id)}"
+              type="button"
+              aria-expanded="false">
+              Download ⌄
+            </button>
+
+            <div class="dropdown-menu" hidden>
+              <button data-export="excel" data-id="${esc(id)}">
+                Microsoft Excel (.xlsx)
+              </button>
+
+              <button data-export="word" data-id="${esc(id)}">
+                Microsoft Word (.doc)
+              </button>
+
+              <button data-export="image" data-id="${esc(id)}">
+                Designed applicant image
+              </button>
+
+              <button data-export="pdf" data-id="${esc(id)}">
+                PDF document
+              </button>
+            </div>
+
+          </div>
+
+          <button
+            class="applicant-action delete-one"
+            data-id="${esc(id)}"
+            type="button">
+            Delete applicant
+          </button>
+
+        </div>
+
+      </article>
+    `;
   }
+
+  /* ==========================================
+     SEARCH, SELECTION AND PAGINATION
+  ========================================== */
 
   function filteredRows() {
-    const q = ($("#search").value || "").trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r => [r.full_name,r.registration_number,r.set_year,r.email,r.phone,r.whatsapp,r.state,r.city,r.location,r.bio,r.experience,...(r.skills || [])].join(" ").toLowerCase().includes(q));
+    const query = ($("#search").value || "")
+      .trim()
+      .toLowerCase();
+
+    if (!query) return rows;
+
+    return rows.filter(row => {
+      const values = [
+        row.full_name,
+        row.registration_number,
+        row.set_year,
+        row.email,
+        row.phone,
+        row.whatsapp,
+        row.state,
+        row.city,
+        row.location,
+        row.bio,
+        row.experience,
+        ...(row.skills || [])
+      ];
+
+      return values.join(" ").toLowerCase().includes(query);
+    });
   }
-  function selectedRows() { return rows.filter(r => selectedIds.has(String(r.id))); }
+
+  function selectedRows() {
+    return rows.filter(row =>
+      selectedIds.has(String(row.id))
+    );
+  }
+
   function renderPagination(total, totalPages, start, count) {
     $("#pagination").hidden = total <= PAGE_SIZE;
-    $("#resultInfo").textContent = total ? `Showing ${start+1}–${start+count} of ${total} applicants` : "No applicants";
-    $("#paginationInfo").textContent = `Page ${currentPage} of ${totalPages}`;
-    $("#prevPage").disabled = currentPage <= 1; $("#nextPage").disabled = currentPage >= totalPages;
-    const box = $("#pageNumbers"); box.innerHTML = "";
-    for (let p=1;p<=totalPages;p++) {
-      const b=document.createElement("button"); b.className="page-btn"+(p===currentPage?" active":""); b.textContent=p;
-      b.onclick=()=>{currentPage=p;render();window.scrollTo({top:0,behavior:"smooth"});}; box.appendChild(b);
+
+    $("#resultInfo").textContent = total
+      ? `Showing ${start + 1}–${start + count} of ${total} applicants`
+      : "No applicants";
+
+    $("#paginationInfo").textContent =
+      `Page ${currentPage} of ${totalPages}`;
+
+    $("#prevPage").disabled = currentPage <= 1;
+    $("#nextPage").disabled = currentPage >= totalPages;
+
+    const box = $("#pageNumbers");
+    box.innerHTML = "";
+
+    for (let page = 1; page <= totalPages; page++) {
+      const button = document.createElement("button");
+
+      button.className =
+        "page-btn" + (page === currentPage ? " active" : "");
+
+      button.textContent = page;
+
+      button.onclick = () => {
+        currentPage = page;
+        render();
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
+        });
+      };
+
+      box.appendChild(button);
     }
-    $("#pageInput").max=totalPages; $("#pageInput").value=currentPage;
+
+    $("#pageInput").max = totalPages;
+    $("#pageInput").value = currentPage;
   }
+
   function render() {
-    const filtered=filteredRows(), pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
-    currentPage=Math.min(currentPage,pages);
-    const start=(currentPage-1)*PAGE_SIZE, pageRows=filtered.slice(start,start+PAGE_SIZE);
-    $("#count").textContent=rows.length;
-    $("#reviewedCount").textContent=rows.filter(r=>r.reviewed===true).length;
-    $("#selectedCount").textContent=selectedIds.size;
-    $("#downloadSelected").disabled=!selectedIds.size;
-    $("#deleteSelected").disabled=!selectedIds.size;
-    $("#applicants").innerHTML=filtered.length?pageRows.map(applicantCard).join(""):'<div class="empty">No applicants found.</div>';
-    renderPagination(filtered.length,pages,start,pageRows.length);
-    $("#selectAll").checked=pageRows.length>0&&pageRows.every(r=>selectedIds.has(String(r.id)));
-    $("#selectAll").indeterminate=pageRows.some(r=>selectedIds.has(String(r.id)))&&!$("#selectAll").checked;
+    const filtered = filteredRows();
+
+    const pages = Math.max(
+      1,
+      Math.ceil(filtered.length / PAGE_SIZE)
+    );
+
+    currentPage = Math.min(currentPage, pages);
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+
+    const pageRows = filtered.slice(
+      start,
+      start + PAGE_SIZE
+    );
+
+    const reviewedTotal = rows.filter(
+      row => row.reviewed === true
+    ).length;
+
+    const notReviewedTotal = rows.length - reviewedTotal;
+
+    $("#count").textContent = rows.length;
+    $("#reviewedCount").textContent = reviewedTotal;
+    $("#notReviewedCount").textContent = notReviewedTotal;
+
+    $("#downloadSelected").disabled = !selectedIds.size;
+    $("#deleteSelected").disabled = !selectedIds.size;
+
+    $("#applicants").innerHTML = filtered.length
+      ? pageRows.map(applicantCard).join("")
+      : '<div class="empty">No applicants found.</div>';
+
+    renderPagination(
+      filtered.length,
+      pages,
+      start,
+      pageRows.length
+    );
+
+    $("#selectAll").checked =
+      pageRows.length > 0 &&
+      pageRows.every(row =>
+        selectedIds.has(String(row.id))
+      );
+
+    $("#selectAll").indeterminate =
+      pageRows.some(row =>
+        selectedIds.has(String(row.id))
+      ) && !$("#selectAll").checked;
   }
-  $("#search").addEventListener("input",()=>{currentPage=1;render();});
-  $("#prevPage").onclick=()=>{if(currentPage>1){currentPage--;render();}};
-  $("#nextPage").onclick=()=>{if(currentPage<Math.ceil(filteredRows().length/PAGE_SIZE)){currentPage++;render();}};
-  $("#goPage").onclick=()=>{const n=Number($("#pageInput").value),max=Math.max(1,Math.ceil(filteredRows().length/PAGE_SIZE));if(!Number.isInteger(n)||n<1||n>max)return notify(`Enter a page number between 1 and ${max}.`);currentPage=n;render();};
-  $("#pageInput").addEventListener("keydown",e=>{if(e.key==="Enter")$("#goPage").click();});
-  $("#applicants").addEventListener("change",e=>{
-    if(!e.target.matches(".applicant-check"))return;
-    const id=String(e.target.dataset.id); e.target.checked?selectedIds.add(id):selectedIds.delete(id); render();
+
+  $("#search").addEventListener("input", () => {
+    currentPage = 1;
+    render();
   });
-  $("#selectAll").onchange=e=>{
-    const list=filteredRows().slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
-    list.forEach(r=>e.target.checked?selectedIds.add(String(r.id)):selectedIds.delete(String(r.id))); render();
+
+  $("#prevPage").onclick = () => {
+    if (currentPage > 1) {
+      currentPage--;
+      render();
+    }
   };
 
-  function closeMenus(except=null) {
-    document.querySelectorAll(".dropdown-menu").forEach(m=>{if(m!==except)m.hidden=true;});
-    document.querySelectorAll('[aria-expanded="true"]').forEach(b=>{if(!except || !b.parentElement.contains(except))b.setAttribute("aria-expanded","false");});
-  }
-  function toggleMenu(button,menu) {
-    const open=menu.hidden; closeMenus(); menu.hidden=!open; button.setAttribute("aria-expanded",String(open));
-  }
-  $("#exportAllBtn").onclick=()=>toggleMenu($("#exportAllBtn"),$("#exportAllMenu"));
-  $("#downloadSelected").onclick=()=>{
-    if(!selectedIds.size)return notify("Select at least one applicant first.");
-    toggleMenu($("#downloadSelected"),$("#selectedExportMenu"));
-  };
-  $("#applicants").addEventListener("click",async e=>{
-    const exportBtn=e.target.closest(".individual-export");
-    if(exportBtn){const menu=exportBtn.parentElement.querySelector(".dropdown-menu");toggleMenu(exportBtn,menu);return;}
-    const preview=e.target.closest(".preview-files"), details=e.target.closest(".preview-details"), review=e.target.closest(".toggle-review"), del=e.target.closest(".delete-one");
-    if(review){const row=rows.find(r=>String(r.id)===review.dataset.id);if(row)await setReviewed(row,!row.reviewed);return;}
-    if(del){const row=rows.find(r=>String(r.id)===del.dataset.id);if(row)confirmDelete([String(row.id)],`Delete ${row.full_name || "this applicant"}?`);return;}
-    if(preview||details){const row=rows.find(r=>String(r.id)===(preview||details).dataset.id);if(!row)return;preview?await openFilePreview(row):openDetails(row);}
-  });
-
-  async function setReviewed(row,value) {
-    const {error}=await db.from("applications").update({reviewed:value}).eq("id",row.id);
-    if(error){notify("Could not save review status. Check the applications UPDATE permission and reviewed column. "+error.message);return;}
-    row.reviewed=value;render();notify(value?"Applicant marked as reviewed.":"Applicant marked as not reviewed.");
-  }
-
-  function openOverlay(id){$(id).hidden=false;}
-  function closePreview(){ $("#previewModal").hidden=true;$("#previewContent").innerHTML="";currentFiles=[];currentFileIndex=0; }
-  async function openFilePreview(row) {
-    const files=getApplicantFiles(row); if(!files.length)return notify("This applicant has no uploaded files.");
-    currentFiles=[];currentFileIndex=0;$("#previewTitle").textContent=row.full_name||"Applicant files";
-    $("#previewSubtitle").textContent=`Registration #${regNo(row)}`;$("#previewCounter").textContent="";
-    $("#previewContent").innerHTML='<p>Loading uploaded files…</p>';openOverlay("#previewModal");
-    try{for(const f of files)currentFiles.push({...f,url:await signedUrl(f.path)});displayPreviewFile();}
-    catch(error){$("#previewContent").innerHTML=`<p>Could not load uploaded file: ${esc(error.message)}</p>`;}
-  }
-  function displayPreviewFile() {
-    const f=currentFiles[currentFileIndex];if(!f)return;
-    const ext=f.name.split(".").pop().toLowerCase();
-    const img=(f.type||"").startsWith("image/")||["jpg","jpeg","png","gif","webp","bmp"].includes(ext);
-    const pdf=f.type==="application/pdf"||ext==="pdf";
-    $("#previewContent").innerHTML=img?`<img src="${esc(f.url)}" alt="${esc(f.name)}">`:pdf?`<iframe src="${esc(f.url)}" title="${esc(f.name)}"></iframe>`:`<div><h3>${esc(f.name)}</h3><p>This file format may not preview in the browser.</p><a href="${esc(f.url)}" target="_blank" rel="noopener">Open file</a></div>`;
-    $("#previewCounter").textContent=`${currentFileIndex+1} of ${currentFiles.length}`;
-    $("#prevFile").disabled=currentFileIndex<=0;$("#nextFile").disabled=currentFileIndex>=currentFiles.length-1;
-    $("#prevFile").hidden=$("#nextFile").hidden=currentFiles.length<=1;
-  }
-  function moveFile(direction){const next=currentFileIndex+direction;if(next>=0&&next<currentFiles.length){currentFileIndex=next;displayPreviewFile();}}
-  $("#prevFile").onclick=()=>moveFile(-1);$("#nextFile").onclick=()=>moveFile(1);
-  $("#previewContent").addEventListener("touchstart",e=>{touchStartX=e.changedTouches[0].screenX;},{passive:true});
-  $("#previewContent").addEventListener("touchend",e=>{const dx=e.changedTouches[0].screenX-touchStartX;if(Math.abs(dx)>45)moveFile(dx<0?1:-1);},{passive:true});
-  document.addEventListener("keydown",e=>{
-    if(!$("#previewModal").hidden){if(e.key==="Escape")closePreview();if(e.key==="ArrowLeft")moveFile(-1);if(e.key==="ArrowRight")moveFile(1);}
-    if(!$("#deleteModal").hidden&&e.key==="Escape")$("#deleteModal").hidden=true;
-  });
-  $("#closePreview").onclick=closePreview;
-
-  function linkifyDetail(label,value) {
-    const v=String(value??"").trim();if(!v)return "—";
-    if(label==="Email")return `<a href="mailto:${esc(v)}">${esc(v)}</a>`;
-    if(label==="WhatsApp number"){const n=normalisePhone(v);return n?`<a href="https://wa.me/${esc(n)}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>`:esc(v);}
-    if(label==="Portfolio" && /^https?:\/\//i.test(v))return `<a href="${esc(v)}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>`;
-    return esc(v);
-  }
-  function openDetails(row) {
-    const fields=[
-      ["Registration number",regNo(row)],["Full name",row.full_name],["Set / graduation year",row.set_year],
-      ["Email",row.email],["Phone number",row.phone],["WhatsApp number",row.whatsapp],
-      ["State",row.state],["City",row.city||row.location],["Skills",Array.isArray(row.skills)?row.skills.join(", "):row.skills],
-      ["Bio",row.bio],["Experience",row.experience],["Portfolio",row.portfolio],
-      ["Review status",row.reviewed?"Reviewed":"Not reviewed"],["Submitted",row.created_at?new Date(row.created_at).toLocaleString():""]
-    ];
-    $("#previewTitle").textContent=row.full_name||"Applicant details";$("#previewSubtitle").textContent=`Registration #${regNo(row)}`;
-    $("#previewContent").innerHTML=`<div class="details-grid">${fields.filter(([,v])=>v!==null&&v!==undefined&&String(v).trim()!=="").map(([k,v])=>`<div class="detail-card ${["Bio","Experience","Portfolio"].includes(k)?"wide":""}"><small>${esc(k)}</small><div>${linkifyDetail(k,v)}</div></div>`).join("")}</div>`;
-    $("#previewCounter").textContent="";$("#prevFile").hidden=true;$("#nextFile").hidden=true;openOverlay("#previewModal");
-  }
-
-  function confirmDelete(ids,message) {
-    pendingDeleteIds=ids.map(String);$("#deleteMessage").textContent=message||`You are about to permanently delete ${ids.length} applicant record(s). This cannot be undone.`;
-    openOverlay("#deleteModal");
-  }
-  $("#deleteSelected").onclick=()=>{if(!selectedIds.size)return notify("Select applicants you want to delete.");confirmDelete([...selectedIds],`You are about to permanently delete ${selectedIds.size} applicant record(s). This cannot be undone.`);};
-  $("#cancelDelete").onclick=()=>{$("#deleteModal").hidden=true;pendingDeleteIds=[];};
-  $("#confirmDelete").onclick=async()=>{
-    if(!pendingDeleteIds.length)return;
-    const button=$("#confirmDelete");button.disabled=true;button.textContent="Deleting…";
-    try{
-      const targets=rows.filter(r=>pendingDeleteIds.includes(String(r.id)));
-      const paths=targets.flatMap(r=>getApplicantFiles(r).map(f=>f.path));
-      if(paths.length){const {error}=await db.storage.from("applicant-portfolio").remove(paths);if(error)throw new Error("Storage deletion failed (check bucket DELETE policy): "+error.message);}
-      const {error}=await db.from("applications").delete().in("id",pendingDeleteIds);
-      if(error)throw new Error("Applicant deletion failed (check applications DELETE policy): "+error.message);
-      rows=rows.filter(r=>!pendingDeleteIds.includes(String(r.id)));pendingDeleteIds.forEach(id=>selectedIds.delete(id));
-      $("#deleteModal").hidden=true;pendingDeleteIds=[];currentPage=1;render();notify("Applicant record(s) deleted.");
-    }catch(error){notify(error.message);}
-    finally{button.disabled=false;button.textContent="Yes, delete";}
+  $("#nextPage").onclick = () => {
+    if (currentPage < Math.ceil(
+      filteredRows().length / PAGE_SIZE
+    )) {
+      currentPage++;
+      render();
+    }
   };
 
-  function exportFields(row) {
-    const fields=[["Registration Number",regNo(row)],["Full Name",row.full_name],["Set / Graduation Year",row.set_year],
-      ["Phone Number",row.phone],["WhatsApp Number",row.whatsapp],["Email Address",row.email],["State",row.state],
-      ["City",row.city||row.location],["Skills",Array.isArray(row.skills)?row.skills.join(", "):row.skills],
-      ["Bio",row.bio],["Experience",row.experience],["Portfolio",row.portfolio],["Review Status",row.reviewed?"Reviewed":"Not reviewed"]];
-    return fields.filter(([,v])=>v!==null&&v!==undefined&&String(v).trim()!=="");
-  }
-  function exportDesign(row) {
-    return `<section class="export-page"><header><b>CACSF</b><span>ALUMNI FELLOWSHIP<br>MEDIA UNIT</span></header><div class="export-heading"><small>VOLUNTEER APPLICATION</small><h1>${esc(row.full_name||"Applicant")}</h1><p>Registration #${esc(regNo(row))}</p></div><div class="export-fields">${exportFields(row).filter(([k])=>!["Full Name","Registration Number"].includes(k)).map(([k,v])=>`<article><small>${esc(k)}</small><p>${esc(v)}</p></article>`).join("")}</div><footer>CACSF Alumni Fellowship Media Unit</footer></section>`;
-  }
-  const exportCss=`.export-page{box-sizing:border-box;width:800px;min-height:1050px;padding:52px;background:#fff;color:#29243a;font-family:Arial,sans-serif}.export-page header{display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #c7ff32;padding-bottom:20px}.export-page header b{font-size:34px;color:#6415f5}.export-page header span{text-align:right;color:#6415f5;font-size:12px;font-weight:bold}.export-heading{background:#6415f5;color:#fff;padding:32px;margin:32px 0;border-radius:16px}.export-heading small{color:#c7ff32;font-weight:bold;letter-spacing:2px}.export-heading h1{font-size:34px;margin:14px 0}.export-fields{display:grid;grid-template-columns:1fr 1fr;gap:13px}.export-fields article{border:1px solid #e8e0f3;border-radius:10px;padding:14px;overflow-wrap:anywhere}.export-fields small{color:#6415f5;font-weight:bold;text-transform:uppercase}.export-fields p{font-size:14px;line-height:1.5}.export-page footer{margin-top:40px;border-top:1px solid #ddd;padding-top:15px;color:#777;font-size:12px}`;
-  async function makeCanvas(row) {
-    await exportLibraries();const holder=document.createElement("div");holder.style.cssText="position:fixed;left:-10000px;top:0;width:800px";
-    holder.innerHTML=`<style>${exportCss}</style>${exportDesign(row)}`;document.body.appendChild(holder);
-    try{return await html2canvas(holder.querySelector(".export-page"),{scale:2,backgroundColor:"#fff"});}finally{holder.remove();}
-  }
-  async function exportPdf(records,filename="CACSF-Alumni-Applicants.pdf") {
-    await exportLibraries();const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-    for(let i=0;i<records.length;i++){const canvas=await makeCanvas(records[i]);const img=canvas.toDataURL("image/png");const w=190,h=280,ratio=Math.min(w/canvas.width,h/canvas.height),iw=canvas.width*ratio,ih=canvas.height*ratio;if(i)pdf.addPage();pdf.addImage(img,"PNG",(210-iw)/2,8,iw,ih);}
-    pdf.save(filename);
-  }
-  async function runExport(format,records) {
-    if(!records.length)return notify("There are no applicants to export.");
-    const stem=records.length===1?`CACSF-${safeName(records[0].full_name)}-${regNo(records[0])}`:"CACSF-Alumni-Applicants";
-    if(format==="excel"){
-      await exportLibraries();const data=records.map(r=>Object.fromEntries(exportFields(r)));const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Applicants");XLSX.writeFile(wb,`${stem}.xlsx`);
-    } else if(format==="word"){
-      const sections=records.map(r=>`<h2>${esc(r.full_name||"Applicant")} — #${esc(regNo(r))}</h2><table>${exportFields(r).map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table>`);
-      const doc=`<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial;padding:25px;color:#29243a}h1,h2{color:#6415f5}table{border-collapse:collapse;width:100%;margin-bottom:30px}th,td{border:1px solid #ddd;padding:9px;text-align:left;vertical-align:top}th{background:#f0eaff;width:32%}</style></head><body><h1>CACSF Alumni Fellowship Media Unit</h1><h2>Volunteer Applicants</h2>${sections}</body></html>`;
-      downloadBlob(new Blob(["\ufeff",doc],{type:"application/msword"}),`${stem}.doc`);
-    } else if(format==="image"){
-      if(records.length>1)return exportPdf(records);
-      const canvas=await makeCanvas(records[0]);const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));if(!blob)throw new Error("Could not create PNG image.");downloadBlob(blob,`${stem}.png`);
-    } else if(format==="pdf") await exportPdf(records,`${stem}.pdf`);
-    closeMenus();notify("Export prepared successfully.");
-  }
-  document.addEventListener("click",async e=>{
-    const choice=e.target.closest("[data-export]");
-    if(choice){
-      const scope=choice.dataset.scope, id=choice.dataset.id;
-      const records=id?rows.filter(r=>String(r.id)===String(id)):scope==="selected"?selectedRows():rows;
-      closeMenus();
-      try{await runExport(choice.dataset.export,records);}catch(error){notify("Export failed: "+error.message);}
+  $("#goPage").onclick = () => {
+    const number = Number($("#pageInput").value);
+
+    const max = Math.max(
+      1,
+      Math.ceil(filteredRows().length / PAGE_SIZE)
+    );
+
+    if (
+      !Number.isInteger(number) ||
+      number < 1 ||
+      number > max
+    ) {
+      notify(`Enter a page number between 1 and ${max}.`);
       return;
     }
-    if(!e.target.closest(".dropdown-wrap"))closeMenus();
+
+    currentPage = number;
+    render();
+  };
+
+  $("#pageInput").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      $("#goPage").click();
+    }
   });
 
-  document.querySelectorAll(".overlay-modal").forEach(modal=>{
-    modal.addEventListener("click",e=>{if(e.target!==modal)return;modal.hidden=true;if(modal.id==="previewModal")closePreview();if(modal.id==="deleteModal")pendingDeleteIds=[];});
+  $("#applicants").addEventListener("change", event => {
+    if (!event.target.matches(".applicant-check")) return;
+
+    const id = String(event.target.dataset.id);
+
+    if (event.target.checked) {
+      selectedIds.add(id);
+    } else {
+      selectedIds.delete(id);
+    }
+
+    render();
   });
-  $("#logout").onclick=async()=>{
-    if(db){const {error}=await db.auth.signOut();if(error)return notify("Could not sign out: "+error.message);}
-    rows=[];selectedIds.clear();adminRole=null;$("#email").value="";$("#password").value="";showLogin("You have signed out.");
+
+  $("#selectAll").onchange = event => {
+    const list = filteredRows().slice(
+      (currentPage - 1) * PAGE_SIZE,
+      currentPage * PAGE_SIZE
+    );
+
+    list.forEach(row => {
+      const id = String(row.id);
+
+      if (event.target.checked) {
+        selectedIds.add(id);
+      } else {
+        selectedIds.delete(id);
+      }
+    });
+
+    render();
   };
-  if(cloud)checkAdminSession();else showLogin("Supabase is not configured. Live administrator sign-in is unavailable.");
+
+  /* ==========================================
+     REVIEWED / NOT REVIEWED POPUP
+  ========================================== */
+
+  function openStatusList(reviewed) {
+    const list = rows.filter(
+      row => row.reviewed === reviewed
+    );
+
+    $("#statusListTitle").textContent = reviewed
+      ? "Reviewed Applicants"
+      : "Not Reviewed Applicants";
+
+    $("#statusListSubtitle").textContent =
+      `${list.length} applicant${list.length === 1 ? "" : "s"} in this list`;
+
+    const content = $("#statusListContent");
+
+    if (!list.length) {
+      content.innerHTML = `
+        <div class="status-empty">
+          <h3>No applicants found</h3>
+          <p>
+            ${
+              reviewed
+                ? "No applicants have been marked as reviewed yet."
+                : "All applicants have been reviewed."
+            }
+          </p>
+        </div>
+      `;
+    } else {
+      content.innerHTML = list.map(row => `
+        <button
+          class="status-applicant"
+          type="button"
+          data-applicant-id="${esc(row.id)}">
+
+          <span class="status-applicant-info">
+            <strong>${esc(row.full_name || "Unnamed applicant")}</strong>
+            <small>
+              Registration #${esc(regNo(row))}
+              · ${esc(row.set_year || "Set not provided")}
+            </small>
+          </span>
+
+          <span class="status-applicant-badge ${reviewed ? "reviewed" : "not-reviewed"}">
+            ${reviewed ? "✓ Reviewed" : "Not reviewed"}
+          </span>
+
+        </button>
+      `).join("");
+    }
+
+    openOverlay("#statusListModal");
+  }
+
+  $("#reviewedStatBtn").addEventListener("click", () => {
+    openStatusList(true);
+  });
+
+  $("#notReviewedStatBtn").addEventListener("click", () => {
+    openStatusList(false);
+  });
+
+  $("#closeStatusList").onclick = () => {
+    closeOverlay("#statusListModal");
+  };
+
+  $("#statusListContent").addEventListener("click", event => {
+    const button = event.target.closest("[data-applicant-id]");
+
+    if (!button) return;
+
+    const row = rows.find(
+      applicant =>
+        String(applicant.id) === button.dataset.applicantId
+    );
+
+    if (!row) return;
+
+    closeOverlay("#statusListModal");
+    openDetails(row);
+  });
+
+  /* ==========================================
+     DROPDOWN MENUS
+  ========================================== */
+
+  function closeMenus(except = null) {
+    document.querySelectorAll(".dropdown-menu").forEach(menu => {
+      if (menu !== except) {
+        menu.hidden = true;
+      }
+    });
+
+    document.querySelectorAll('[aria-expanded="true"]').forEach(button => {
+      if (!except || !button.parentElement.contains(except)) {
+        button.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  function toggleMenu(button, menu) {
+    const shouldOpen = menu.hidden;
+
+    closeMenus();
+
+    menu.hidden = !shouldOpen;
+
+    button.setAttribute(
+      "aria-expanded",
+      String(shouldOpen)
+    );
+  }
+
+  $("#exportAllBtn").onclick = () => {
+    toggleMenu(
+      $("#exportAllBtn"),
+      $("#exportAllMenu")
+    );
+  };
+
+  $("#downloadSelected").onclick = () => {
+    if (!selectedIds.size) {
+      notify("Select at least one applicant first.");
+      return;
+    }
+
+    toggleMenu(
+      $("#downloadSelected"),
+      $("#selectedExportMenu")
+    );
+  };
+
+  /* ==========================================
+     APPLICANT ACTIONS
+  ========================================== */
+
+  $("#applicants").addEventListener("click", async event => {
+    const exportButton = event.target.closest(".individual-export");
+
+    if (exportButton) {
+      const menu = exportButton.parentElement.querySelector(
+        ".dropdown-menu"
+      );
+
+      toggleMenu(exportButton, menu);
+      return;
+    }
+
+    const preview = event.target.closest(".preview-files");
+    const details = event.target.closest(".preview-details");
+    const review = event.target.closest(".toggle-review");
+    const del = event.target.closest(".delete-one");
+
+    if (review) {
+      const row = rows.find(
+        item => String(item.id) === review.dataset.id
+      );
+
+      if (row) {
+        await setReviewed(row, !row.reviewed);
+      }
+
+      return;
+    }
+
+    if (del) {
+      const row = rows.find(
+        item => String(item.id) === del.dataset.id
+      );
+
+      if (row) {
+        confirmDelete(
+          [String(row.id)],
+          `Delete ${row.full_name || "this applicant"}?`
+        );
+      }
+
+      return;
+    }
+
+    if (preview || details) {
+      const button = preview || details;
+
+      const row = rows.find(
+        item => String(item.id) === button.dataset.id
+      );
+
+      if (!row) return;
+
+      if (preview) {
+        await openFilePreview(row);
+      } else {
+        openDetails(row);
+      }
+    }
+  });
+
+  /* ==========================================
+     SAVE REVIEW STATUS
+  ========================================== */
+
+  async function setReviewed(row, value) {
+    const { data, error } = await db
+      .from("applications")
+      .update({ reviewed: value })
+      .eq("id", row.id)
+      .select("id, reviewed");
+
+    if (error) {
+      notify(
+        "Could not save review status. " + error.message
+      );
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      notify(
+        "Review status was not changed. Supabase did not confirm the update."
+      );
+      return;
+    }
+
+    row.reviewed = value;
+
+    render();
+
+    notify(
+      value
+        ? "Applicant marked as reviewed."
+        : "Applicant marked as not reviewed."
+    );
+  }
+
+  /* ==========================================
+     FILE PREVIEW
+  ========================================== */
+
+  function closePreview() {
+    closeOverlay("#previewModal");
+
+    $("#previewContent").innerHTML = "";
+
+    currentFiles = [];
+    currentFileIndex = 0;
+  }
+
+  async function openFilePreview(row) {
+    const files = getApplicantFiles(row);
+
+    if (!files.length) {
+      notify("This applicant has no uploaded files.");
+      return;
+    }
+
+    currentFiles = [];
+    currentFileIndex = 0;
+
+    $("#previewTitle").textContent =
+      row.full_name || "Applicant files";
+
+    $("#previewSubtitle").textContent =
+      `Registration #${regNo(row)}`;
+
+    $("#previewCounter").textContent = "";
+
+    $("#previewContent").innerHTML =
+      "<p>Loading uploaded files…</p>";
+
+    $("#prevFile").hidden = false;
+    $("#nextFile").hidden = false;
+
+    openOverlay("#previewModal");
+
+    try {
+      for (const file of files) {
+        currentFiles.push({
+          ...file,
+          url: await signedUrl(file.path)
+        });
+      }
+
+      displayPreviewFile();
+
+    } catch (error) {
+      $("#previewContent").innerHTML = `
+        <p>Could not load uploaded file: ${esc(error.message)}</p>
+      `;
+    }
+  }
+
+  function displayPreviewFile() {
+    const file = currentFiles[currentFileIndex];
+
+    if (!file) return;
+
+    const extension = file.name
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+    const isImage =
+      (file.type || "").startsWith("image/") ||
+      ["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(extension);
+
+    const isPdf =
+      file.type === "application/pdf" ||
+      extension === "pdf";
+
+    $("#previewContent").innerHTML = isImage
+      ? `<img src="${esc(file.url)}" alt="${esc(file.name)}">`
+      : isPdf
+        ? `<iframe src="${esc(file.url)}" title="${esc(file.name)}"></iframe>`
+        : `
+          <div>
+            <h3>${esc(file.name)}</h3>
+            <p>This file format may not preview in the browser.</p>
+            <a href="${esc(file.url)}" target="_blank" rel="noopener">
+              Open file
+            </a>
+          </div>
+        `;
+
+    $("#previewCounter").textContent =
+      `${currentFileIndex + 1} of ${currentFiles.length}`;
+
+    $("#prevFile").disabled = currentFileIndex <= 0;
+
+    $("#nextFile").disabled =
+      currentFileIndex >= currentFiles.length - 1;
+
+    $("#prevFile").hidden =
+      $("#nextFile").hidden =
+      currentFiles.length <= 1;
+  }
+
+  function moveFile(direction) {
+    const next = currentFileIndex + direction;
+
+    if (next >= 0 && next < currentFiles.length) {
+      currentFileIndex = next;
+      displayPreviewFile();
+    }
+  }
+
+  $("#prevFile").onclick = () => moveFile(-1);
+  $("#nextFile").onclick = () => moveFile(1);
+
+  $("#previewContent").addEventListener("touchstart", event => {
+    touchStartX = event.changedTouches[0].screenX;
+  }, { passive: true });
+
+  $("#previewContent").addEventListener("touchend", event => {
+    const difference =
+      event.changedTouches[0].screenX - touchStartX;
+
+    if (Math.abs(difference) > 45) {
+      moveFile(difference < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+
+  $("#closePreview").onclick = closePreview;
+
+  /* ==========================================
+     APPLICANT DETAILS
+  ========================================== */
+
+  function linkifyDetail(label, value) {
+    const text = String(value ?? "").trim();
+
+    if (!text) return "—";
+
+    if (label === "Email") {
+      return `
+        <a href="mailto:${esc(text)}">${esc(text)}</a>
+      `;
+    }
+
+    if (label === "WhatsApp number") {
+      const number = normalisePhone(text);
+
+      return number
+        ? `<a href="https://wa.me/${esc(number)}"
+             target="_blank"
+             rel="noopener noreferrer">${esc(text)}</a>`
+        : esc(text);
+    }
+
+    if (
+      label === "Portfolio" &&
+      /^https?:\/\//i.test(text)
+    ) {
+      return `
+        <a href="${esc(text)}"
+           target="_blank"
+           rel="noopener noreferrer">${esc(text)}</a>
+      `;
+    }
+
+    return esc(text);
+  }
+
+  function openDetails(row) {
+    const fields = [
+      ["Registration number", regNo(row)],
+      ["Full name", row.full_name],
+      ["Set / graduation year", row.set_year],
+      ["Email", row.email],
+      ["Phone number", row.phone],
+      ["WhatsApp number", row.whatsapp],
+      ["State", row.state],
+      ["City", row.city || row.location],
+      [
+        "Skills",
+        Array.isArray(row.skills)
+          ? row.skills.join(", ")
+          : row.skills
+      ],
+      ["Bio", row.bio],
+      ["Experience", row.experience],
+      ["Portfolio", row.portfolio],
+      [
+        "Review status",
+        row.reviewed ? "Reviewed" : "Not reviewed"
+      ],
+      [
+        "Submitted",
+        row.created_at
+          ? new Date(row.created_at).toLocaleString()
+          : ""
+      ]
+    ];
+
+    $("#previewTitle").textContent =
+      row.full_name || "Applicant details";
+
+    $("#previewSubtitle").textContent =
+      `Registration #${regNo(row)}`;
+
+    $("#previewContent").innerHTML = `
+      <div class="details-grid">
+
+        ${fields
+          .filter(([, value]) =>
+            value !== null &&
+            value !== undefined &&
+            String(value).trim() !== ""
+          )
+          .map(([label, value]) => `
+            <div class="detail-card ${
+              ["Bio", "Experience", "Portfolio", "Submitted"].includes(label)
+                ? "wide"
+                : ""
+            }">
+
+              <small>${esc(label)}</small>
+
+              <div>${linkifyDetail(label, value)}</div>
+
+            </div>
+          `)
+          .join("")}
+
+      </div>
+    `;
+
+    $("#previewCounter").textContent = "";
+
+    $("#prevFile").hidden = true;
+    $("#nextFile").hidden = true;
+
+    openOverlay("#previewModal");
+  }
+
+  /* ==========================================
+     DELETE APPLICANTS
+  ========================================== */
+
+  function confirmDelete(ids, message) {
+    pendingDeleteIds = ids.map(String);
+
+    $("#deleteMessage").textContent =
+      message ||
+      `You are about to permanently delete ${ids.length} applicant record(s). This cannot be undone.`;
+
+    openOverlay("#deleteModal");
+  }
+
+  $("#deleteSelected").onclick = () => {
+    if (!selectedIds.size) {
+      notify("Select applicants you want to delete.");
+      return;
+    }
+
+    confirmDelete(
+      [...selectedIds],
+      `You are about to permanently delete ${selectedIds.size} applicant record(s). This cannot be undone.`
+    );
+  };
+
+  $("#cancelDelete").onclick = () => {
+    closeOverlay("#deleteModal");
+    pendingDeleteIds = [];
+  };
+
+  $("#confirmDelete").onclick = async () => {
+    if (!pendingDeleteIds.length) return;
+
+    const button = $("#confirmDelete");
+
+    button.disabled = true;
+    button.textContent = "Deleting…";
+
+    try {
+      const targets = rows.filter(row =>
+        pendingDeleteIds.includes(String(row.id))
+      );
+
+      const paths = targets.flatMap(row =>
+        getApplicantFiles(row).map(file => file.path)
+      );
+
+      if (paths.length) {
+        const { error: storageError } = await db.storage
+          .from("applicant-portfolio")
+          .remove(paths);
+
+        if (storageError) {
+          throw new Error(
+            "Storage deletion failed: " + storageError.message
+          );
+        }
+      }
+
+      const { data, error } = await db
+        .from("applications")
+        .delete()
+        .in("id", pendingDeleteIds)
+        .select("id");
+
+      if (error) {
+        throw new Error(
+          "Applicant deletion failed: " + error.message
+        );
+      }
+
+      const deletedIds = new Set(
+        (data || []).map(row => String(row.id))
+      );
+
+      if (deletedIds.size !== pendingDeleteIds.length) {
+        throw new Error(
+          "Supabase did not confirm deletion of every selected applicant. Refresh the dashboard and check the records."
+        );
+      }
+
+      rows = rows.filter(
+        row => !deletedIds.has(String(row.id))
+      );
+
+      deletedIds.forEach(id => selectedIds.delete(id));
+
+      closeOverlay("#deleteModal");
+
+      pendingDeleteIds = [];
+      currentPage = 1;
+
+      render();
+
+      notify("Applicant record(s) and uploaded files deleted.");
+
+    } catch (error) {
+      notify(error.message);
+
+    } finally {
+      button.disabled = false;
+      button.textContent = "Yes, delete";
+    }
+  };
+
+  /* ==========================================
+     EXPORT DATA
+  ========================================== */
+
+  function exportFields(row) {
+    const fields = [
+      ["Registration Number", regNo(row)],
+      ["Full Name", row.full_name],
+      ["Set / Graduation Year", row.set_year],
+      ["Phone Number", row.phone],
+      ["WhatsApp Number", row.whatsapp],
+      ["Email Address", row.email],
+      ["State", row.state],
+      ["City", row.city || row.location],
+      [
+        "Skills",
+        Array.isArray(row.skills)
+          ? row.skills.join(", ")
+          : row.skills
+      ],
+      ["Bio", row.bio],
+      ["Experience", row.experience],
+      ["Portfolio", row.portfolio],
+      [
+        "Review Status",
+        row.reviewed ? "Reviewed" : "Not reviewed"
+      ]
+    ];
+
+    return fields.filter(([, value]) =>
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== ""
+    );
+  }
+
+  function exportDesign(row) {
+    return `
+      <section class="export-page">
+
+        <header>
+          <b>CACSF</b>
+          <span>ALUMNI FELLOWSHIP<br>MEDIA UNIT</span>
+        </header>
+
+        <div class="export-heading">
+          <small>VOLUNTEER APPLICATION</small>
+          <h1>${esc(row.full_name || "Applicant")}</h1>
+          <p>Registration #${esc(regNo(row))}</p>
+        </div>
+
+        <div class="export-fields">
+
+          ${exportFields(row)
+            .filter(([key]) =>
+              !["Full Name", "Registration Number"].includes(key)
+            )
+            .map(([key, value]) => `
+              <article>
+                <small>${esc(key)}</small>
+                <p>${esc(value)}</p>
+              </article>
+            `)
+            .join("")}
+
+        </div>
+
+        <footer>
+          CACSF Alumni Fellowship Media Unit
+        </footer>
+
+      </section>
+    `;
+  }
+
+  const exportCss = `
+    .export-page {
+      box-sizing: border-box;
+      width: 800px;
+      min-height: 1050px;
+      padding: 52px;
+      background: #fff;
+      color: #29243a;
+      font-family: Arial, sans-serif;
+    }
+
+    .export-page header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 4px solid #c7ff32;
+      padding-bottom: 20px;
+    }
+
+    .export-page header b {
+      font-size: 34px;
+      color: #6415f5;
+    }
+
+    .export-page header span {
+      text-align: right;
+      color: #6415f5;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .export-heading {
+      background: #6415f5;
+      color: #fff;
+      padding: 32px;
+      margin: 32px 0;
+      border-radius: 16px;
+    }
+
+    .export-heading small {
+      color: #c7ff32;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    .export-heading h1 {
+      font-size: 34px;
+      margin: 14px 0;
+    }
+
+    .export-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 13px;
+    }
+
+    .export-fields article {
+      border: 1px solid #e8e0f3;
+      border-radius: 10px;
+      padding: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .export-fields small {
+      color: #6415f5;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .export-fields p {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .export-page footer {
+      margin-top: 40px;
+      border-top: 1px solid #ddd;
+      padding-top: 15px;
+      color: #777;
+      font-size: 12px;
+    }
+  `;
+
+  async function makeCanvas(row) {
+    await exportLibraries();
+
+    const holder = document.createElement("div");
+
+    holder.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:800px";
+
+    holder.innerHTML = `
+      <style>${exportCss}</style>
+      ${exportDesign(row)}
+    `;
+
+    document.body.appendChild(holder);
+
+    try {
+      return await html2canvas(
+        holder.querySelector(".export-page"),
+        {
+          scale: 2,
+          backgroundColor: "#fff"
+        }
+      );
+
+    } finally {
+      holder.remove();
+    }
+  }
+
+  async function exportPdf(
+    records,
+    filename = "CACSF-Alumni-Applicants.pdf"
+  ) {
+    await exportLibraries();
+
+    const { jsPDF } = window.jspdf;
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    for (let index = 0; index < records.length; index++) {
+      const canvas = await makeCanvas(records[index]);
+
+      const image = canvas.toDataURL("image/png");
+
+      const width = 190;
+      const height = 280;
+
+      const ratio = Math.min(
+        width / canvas.width,
+        height / canvas.height
+      );
+
+      const imageWidth = canvas.width * ratio;
+      const imageHeight = canvas.height * ratio;
+
+      if (index) {
+        pdf.addPage();
+      }
+
+      pdf.addImage(
+        image,
+        "PNG",
+        (210 - imageWidth) / 2,
+        8,
+        imageWidth,
+        imageHeight
+      );
+    }
+
+    pdf.save(filename);
+  }
+
+  async function runExport(format, records) {
+    if (!records.length) {
+      notify("There are no applicants to export.");
+      return;
+    }
+
+    const stem = records.length === 1
+      ? `CACSF-${safeName(records[0].full_name)}-${regNo(records[0])}`
+      : "CACSF-Alumni-Applicants";
+
+    if (format === "excel") {
+      await exportLibraries();
+
+      const data = records.map(row =>
+        Object.fromEntries(exportFields(row))
+      );
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "Applicants"
+      );
+
+      XLSX.writeFile(workbook, `${stem}.xlsx`);
+
+    } else if (format === "word") {
+      const sections = records.map(row => `
+        <h2>
+          ${esc(row.full_name || "Applicant")}
+          — #${esc(regNo(row))}
+        </h2>
+
+        <table>
+          ${exportFields(row).map(([key, value]) => `
+            <tr>
+              <th>${esc(key)}</th>
+              <td>${esc(value)}</td>
+            </tr>
+          `).join("")}
+        </table>
+      `);
+
+      const doc = `
+        <!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {
+              font-family: Arial;
+              padding: 25px;
+              color: #29243a;
+            }
+
+            h1, h2 {
+              color: #6415f5;
+            }
+
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              margin-bottom: 30px;
+            }
+
+            th, td {
+              border: 1px solid #ddd;
+              padding: 9px;
+              text-align: left;
+              vertical-align: top;
+            }
+
+            th {
+              background: #f0eaff;
+              width: 32%;
+            }
+          </style>
+        </head>
+
+        <body>
+          <h1>CACSF Alumni Fellowship Media Unit</h1>
+          <h2>Volunteer Applicants</h2>
+          ${sections.join("")}
+        </body>
+        </html>
+      `;
+
+      downloadBlob(
+        new Blob(["\ufeff", doc], {
+          type: "application/msword"
+        }),
+        `${stem}.doc`
+      );
+
+    } else if (format === "image") {
+      if (records.length > 1) {
+        await exportPdf(records);
+      } else {
+        const canvas = await makeCanvas(records[0]);
+
+        const blob = await new Promise(resolve => {
+          canvas.toBlob(resolve, "image/png");
+        });
+
+        if (!blob) {
+          throw new Error("Could not create PNG image.");
+        }
+
+        downloadBlob(blob, `${stem}.png`);
+      }
+
+    } else if (format === "pdf") {
+      await exportPdf(records, `${stem}.pdf`);
+    }
+
+    closeMenus();
+
+    notify("Export prepared successfully.");
+  }
+
+  document.addEventListener("click", async event => {
+    const choice = event.target.closest("[data-export]");
+
+    if (choice) {
+      const scope = choice.dataset.scope;
+      const id = choice.dataset.id;
+
+      const records = id
+        ? rows.filter(row => String(row.id) === String(id))
+        : scope === "selected"
+          ? selectedRows()
+          : rows;
+
+      closeMenus();
+
+      try {
+        await runExport(choice.dataset.export, records);
+
+      } catch (error) {
+        notify("Export failed: " + error.message);
+      }
+
+      return;
+    }
+
+    if (!event.target.closest(".dropdown-wrap")) {
+      closeMenus();
+    }
+  });
+
+  /* ==========================================
+     MODAL CLOSE CONTROLS
+  ========================================== */
+
+  document.querySelectorAll(".overlay-modal").forEach(modal => {
+    modal.addEventListener("click", event => {
+      if (event.target !== modal) return;
+
+      if (modal.id === "previewModal") {
+        closePreview();
+
+      } else if (modal.id === "deleteModal") {
+        closeOverlay("#deleteModal");
+        pendingDeleteIds = [];
+
+      } else if (modal.id === "statusListModal") {
+        closeOverlay("#statusListModal");
+      }
+    });
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      if (!$("#previewModal").hidden) {
+        closePreview();
+      }
+
+      if (!$("#deleteModal").hidden) {
+        closeOverlay("#deleteModal");
+        pendingDeleteIds = [];
+      }
+
+      if (!$("#statusListModal").hidden) {
+        closeOverlay("#statusListModal");
+      }
+    }
+
+    if (!$("#previewModal").hidden) {
+      if (event.key === "ArrowLeft") {
+        moveFile(-1);
+      }
+
+      if (event.key === "ArrowRight") {
+        moveFile(1);
+      }
+    }
+  });
+
+  /* ==========================================
+     SIGN OUT
+  ========================================== */
+
+  $("#logout").onclick = async () => {
+    if (db) {
+      const { error } = await db.auth.signOut();
+
+      if (error) {
+        notify("Could not sign out: " + error.message);
+        return;
+      }
+    }
+
+    rows = [];
+    selectedIds.clear();
+    adminRole = null;
+
+    $("#email").value = "";
+    $("#password").value = "";
+
+    showLogin("You have signed out.");
+  };
+
+  /* ==========================================
+     START ADMIN DASHBOARD
+  ========================================== */
+
+  if (cloud) {
+    checkAdminSession();
+  } else {
+    showLogin(
+      "Supabase is not configured. Live administrator sign-in is unavailable."
+    );
+  }
+
 })();
