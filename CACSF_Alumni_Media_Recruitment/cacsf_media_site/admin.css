@@ -41,7 +41,7 @@
 }
 
 .top .brand span {
-  text-align:center;
+  display: none !important;
 }
 
 /* LOGIN PAGE */
