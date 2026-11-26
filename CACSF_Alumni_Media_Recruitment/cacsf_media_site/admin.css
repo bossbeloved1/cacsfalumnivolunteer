@@ -1605,3 +1605,42 @@ body.modal-open {
     font-size:9px !important;
   }
 }
+
+/* =========================================
+   FIX: APPLICANT DOWNLOAD MENU OVERLAPPING
+   OTHER APPLICANT CARDS
+========================================= */
+
+/* Keep applicant cards in a controlled stacking order */
+.applicant {
+  position:relative;
+  z-index:1;
+}
+
+/* Bring the card with an open download menu to the front */
+.applicant:has(.dropdown-menu:not([hidden])) {
+  z-index:100;
+}
+
+/* Keep the download menu above its own applicant card */
+.applicant .dropdown-wrap {
+  position:relative;
+  z-index:101;
+}
+
+.applicant .dropdown-menu {
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  z-index:102;
+  min-width:225px;
+}
+
+/* Keep the menu visible when the applicant card is hovered */
+.applicant:hover {
+  z-index:1;
+}
+
+.applicant:has(.dropdown-menu:not([hidden])):hover {
+  z-index:100;
+}
