@@ -642,32 +642,36 @@
             : "—"}
         </div>
 
-        <!-- APPLICATION DECISION: DIRECTLY BELOW SUBMITTED DATE -->
-        <div class="application-decision">
+        <!-- COMPACT APPLICATION DECISION -->
+        <div class="application-decision"
+             style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px;">
 
           ${
             reviewed
               ? `
-                <strong>Application decision:</strong>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
+                  <strong style="white-space:nowrap;">Application decision:</strong>
 
-                <select
-                  class="application-status-select"
-                  data-id="${esc(id)}"
-                  aria-label="Application decision for ${esc(row.full_name || "applicant")}">
+                  <select
+                    class="application-status-select"
+                    data-id="${esc(id)}"
+                    aria-label="Application decision for ${esc(row.full_name || "applicant")}"
+                    style="width:auto;min-width:110px;max-width:145px;flex:0 0 auto;">
 
-                  <option value="Pending" ${applicationStatus === "Pending" ? "selected" : ""}>
-                    Pending
-                  </option>
+                    <option value="Pending" ${applicationStatus === "Pending" ? "selected" : ""}>
+                      Pending
+                    </option>
 
-                  <option value="Accepted" ${applicationStatus === "Accepted" ? "selected" : ""}>
-                    Accepted
-                  </option>
+                    <option value="Accepted" ${applicationStatus === "Accepted" ? "selected" : ""}>
+                      Accepted
+                    </option>
 
-                  <option value="Rejected" ${applicationStatus === "Rejected" ? "selected" : ""}>
-                    Rejected
-                  </option>
+                    <option value="Rejected" ${applicationStatus === "Rejected" ? "selected" : ""}>
+                      Rejected
+                    </option>
 
-                </select>
+                  </select>
+                </div>
 
                 ${
                   applicationStatus === "Accepted"
@@ -676,7 +680,8 @@
                            class="applicant-action whatsapp-invite"
                            href="${esc(inviteLink)}"
                            target="_blank"
-                           rel="noopener noreferrer">
+                           rel="noopener noreferrer"
+                           style="display:inline-flex;align-items:center;width:auto;flex:0 0 auto;white-space:nowrap;margin:0;">
                            Send WhatsApp invitation
                          </a>`
                       : `<span class="whatsapp-missing">
@@ -1441,22 +1446,19 @@
       ["Bio", row.bio],
       ["Experience", row.experience],
       ["Portfolio", row.portfolio],
-      ["Application decision", getApplicationStatus(row)],
-      [
-        "Review status",
-        row.reviewed ? "Reviewed" : "Not reviewed"
-      ],
-      [
-        "Skills selected",
-        Array.isArray(row.skills)
-          ? row.skills.join(", ")
-          : row.skills
-      ],
+      ["Review status", row.reviewed ? "Reviewed" : "Not reviewed"],
       [
         "Submitted",
         row.created_at
           ? new Date(row.created_at).toLocaleString()
           : ""
+      ],
+      ["Application decision", getApplicationStatus(row)],
+      [
+        "Skills selected",
+        Array.isArray(row.skills)
+          ? row.skills.join(", ")
+          : row.skills
       ]
     ];
 
@@ -1715,17 +1717,25 @@
       padding:32px;
       margin:32px 0;
       border-radius:16px;
+      text-align:left;
     }
 
     .export-heading small {
+      display:block;
       color:#c7ff32;
       font-weight:bold;
       letter-spacing:2px;
+      text-align:left;
     }
 
     .export-heading h1 {
       font-size:34px;
       margin:14px 0;
+      text-align:left;
+    }
+
+    .export-heading p {
+      text-align:left;
     }
 
     .export-fields {
