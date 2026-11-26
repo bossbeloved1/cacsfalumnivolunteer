@@ -211,32 +211,43 @@
 
 .dash-toolbar {
   display:flex;
+  flex-direction:column;
   justify-content:space-between;
   gap:20px;
-  align-items:center;
-  flex-wrap:wrap;
+  align-items:stretch;
   margin-bottom:25px;
 }
 
+/* SIX STATISTICS: 3 COLUMNS ON DESKTOP */
+
 .stats {
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:12px;
-  flex-wrap:wrap;
+  width:100%;
 }
 
 .stat {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-start;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  min-height:100px;
   border:1px solid #ffffff55;
   background:#fff;
   color:var(--admin-ink);
   padding:16px 21px;
   border-radius:15px;
-  min-width:140px;
   box-shadow:0 8px 25px #25006b12;
 }
 
 .stat small {
   display:block;
   color:var(--admin-muted);
+  line-height:1.5;
 }
 
 .stat strong {
@@ -283,6 +294,10 @@
   gap:10px;
   align-items:center;
   flex-wrap:wrap;
+}
+
+.actions {
+  justify-content:flex-end;
 }
 
 .outline,
@@ -719,6 +734,49 @@
   color:var(--admin-danger);
 }
 
+/* WHATSAPP INVITATION SPACING */
+
+.applicant-actions a[href*="wa.me"],
+.applicant-actions a[href*="whatsapp.com"] {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  flex:0 1 auto;
+  max-width:100%;
+  min-width:0;
+  min-height:40px;
+  padding:10px 13px;
+  border-radius:9px;
+  background:#e9f8f0;
+  border:1px solid #b8e5ca;
+  color:#147747;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.5;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+
+.applicant-actions a[href*="wa.me"]:hover,
+.applicant-actions a[href*="whatsapp.com"]:hover {
+  background:#d9f3e5;
+  border-color:#168653;
+  text-decoration:none;
+}
+
+/* If invitation is placed outside applicant-actions */
+
+.applicant a[href*="wa.me"],
+.applicant a[href*="whatsapp.com"] {
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+
+/* EMPTY STATE */
+
 .empty {
   text-align:center;
   padding:45px 20px;
@@ -1137,7 +1195,7 @@ body.modal-open {
   transform:translateX(-50%) translateY(0);
 }
 
-/* MOBILE */
+/* TABLET AND MOBILE */
 
 @media(max-width:700px) {
   .admin-wrap {
@@ -1160,13 +1218,16 @@ body.modal-open {
     padding:20px 0 30px;
   }
 
+  /* TWO STAT CARDS PER ROW */
+
   .stats {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
     width:100%;
   }
 
   .stat {
-    flex:1;
-    min-width:0;
+    min-height:88px;
     padding:12px;
   }
 
@@ -1176,6 +1237,7 @@ body.modal-open {
 
   .actions {
     width:100%;
+    justify-content:space-between;
   }
 
   .actions>.dropdown-wrap {
@@ -1237,15 +1299,17 @@ body.modal-open {
 
 @media(max-width:480px) {
   .stats {
-    gap:7px;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
   }
 
   .stat {
-    padding:10px;
+    padding:11px;
+    min-height:80px;
   }
 
   .stat small {
-    font-size:10px;
+    font-size:11px;
   }
 
   .stat strong {
@@ -1296,6 +1360,16 @@ body.modal-open {
   .status-applicant-badge {
     font-size:9px;
     padding:6px 8px;
+  }
+
+  .applicant-actions {
+    gap:8px;
+  }
+
+  .applicant-actions a[href*="wa.me"],
+  .applicant-actions a[href*="whatsapp.com"] {
+    flex:1 1 100%;
+    width:100%;
   }
 }
 
