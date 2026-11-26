@@ -26,6 +26,8 @@
 
   const $ = selector => document.querySelector(selector);
   const PAGE_SIZE = 10;
+  const WHATSAPP_GROUP_LINK =
+    "https://chat.whatsapp.com/Df0SCyWpSGv0tpBpkdslbt";
 
   let rows = [];
   let selectedIds = new Set();
@@ -61,6 +63,15 @@
     String(value || "applicant")
       .replace(/[^a-z0-9-_]/gi, "_")
       .replace(/_+/g, "_");
+
+  // Older applications without a saved decision are treated as Pending.
+  function getApplicationStatus(row) {
+    const status = String(row.application_status || "Pending");
+
+    return ["Pending", "Accepted", "Rejected"].includes(status)
+      ? status
+      : "Pending";
+  }
 
   function notify(message) {
     const toast = $("#adminToast");
@@ -385,6 +396,8 @@
   function normalisePhone(number) {
     let value = String(number || "").replace(/\D/g, "");
 
+    if (!value) return "";
+
     if (value.startsWith("0")) {
       value = "234" + value.slice(1);
     } else if (!value.startsWith("234") && value.length === 10) {
@@ -412,6 +425,21 @@
     `;
   }
 
+  function whatsappInvitationLink(row) {
+    const number = normalisePhone(row.whatsapp);
+
+    if (!number) return "";
+
+    const firstName = String(row.full_name || "there")
+      .trim()
+      .split(/\s+/)[0];
+
+    const message =
+      `Hello ${firstName}, congratulations! Your application to volunteer with the CACSF Alumni Fellowship Media Unit has been accepted. We would love to welcome you into the team. Please use this link to join our official WhatsApp group: ${WHATSAPP_GROUP_LINK}`;
+
+    return `https://wa.me/${encodeURIComponent(number)}?text=${encodeURIComponent(message)}`;
+  }
+
   function getApplicantFiles(row) {
     return Array.isArray(row.portfolio_files)
       ? row.portfolio_files
@@ -434,11 +462,56 @@
     return data.signedUrl;
   }
 
+  /* APPLICATION STATUS CONTROL */
+
+  async function setApplicationStatus(row, value, selectElement = null) {
+    const allowed = ["Pending", "Accepted", "Rejected"];
+
+    if (!allowed.includes(value)) {
+      notify("Invalid application status.");
+      render();
+      return;
+    }
+
+    const previousStatus = getApplicationStatus(row);
+
+    if (previousStatus === value) return;
+
+    if (selectElement) {
+      selectElement.disabled = true;
+    }
+
+    try {
+      const { data, error } = await db
+        .from("applications")
+        .update({ application_status: value })
+        .eq("id", row.id)
+        .select("id, application_status");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Supabase did not confirm the status update. Check your administrator permissions."
+        );
+      }
+
+      row.application_status = data[0].application_status || value;
+
+      render();
+
+      notify(`Application status changed to ${value}.`);
+
+    } catch (error) {
+      notify("Could not update application status: " + error.message);
+      render();
+    }
+  }
+
   /* APPLICANT CARD */
 
   function applicantCard(row) {
     const id = String(row.id);
-
     const checked = selectedIds.has(id) ? "checked" : "";
 
     const skills = Array.isArray(row.skills)
@@ -447,6 +520,7 @@
 
     const files = getApplicantFiles(row);
     const reviewed = row.reviewed === true;
+    const applicationStatus = getApplicationStatus(row);
 
     const portfolio = row.portfolio
       ? `<a href="${esc(row.portfolio)}"
@@ -454,12 +528,15 @@
            rel="noopener noreferrer">${esc(row.portfolio)}</a>`
       : "—";
 
+    const inviteLink = applicationStatus === "Accepted"
+      ? whatsappInvitationLink(row)
+      : "";
+
     return `
       <article class="applicant" data-id="${esc(id)}">
 
         <div class="applicant-head">
 
-          <!-- TOP LEFT: CHECKBOX AND APPLICANT NAME -->
           <div class="applicant-title">
 
             <label class="round-select" title="Select applicant">
@@ -478,7 +555,6 @@
 
           </div>
 
-          <!-- TOP RIGHT: REGISTRATION NUMBER AND REVIEW STATUS -->
           <div class="applicant-identifiers">
 
             <span class="applicant-number">
@@ -496,6 +572,8 @@
         <div class="meta">
 
           <div><strong>Set:</strong> ${esc(row.set_year || "—")}</div>
+
+          <div><strong>Gender:</strong> ${esc(row.gender || "—")}</div>
 
           <div>
             <strong>Location:</strong>
@@ -532,7 +610,43 @@
           ${files.length ? `${files.length} file(s) uploaded` : "None"}
         </p>
 
-        <!-- SKILLS ARE KEPT NEAR THE BOTTOM -->
+        <div class="application-decision">
+          <strong>Application decision:</strong>
+
+          <select
+            class="application-status-select"
+            data-id="${esc(id)}"
+            aria-label="Application decision for ${esc(row.full_name || "applicant")}">
+            <option value="Pending" ${applicationStatus === "Pending" ? "selected" : ""}>
+              Pending
+            </option>
+
+            <option value="Accepted" ${applicationStatus === "Accepted" ? "selected" : ""}>
+              Accepted
+            </option>
+
+            <option value="Rejected" ${applicationStatus === "Rejected" ? "selected" : ""}>
+              Rejected
+            </option>
+          </select>
+
+          ${
+            applicationStatus === "Accepted"
+              ? inviteLink
+                ? `<a
+                     class="applicant-action whatsapp-invite"
+                     href="${esc(inviteLink)}"
+                     target="_blank"
+                     rel="noopener noreferrer">
+                     Send WhatsApp invitation
+                   </a>`
+                : `<span class="whatsapp-missing">
+                     No WhatsApp number provided
+                   </span>`
+              : ""
+          }
+        </div>
+
         ${
           skills.length
             ? `<div class="tags">
@@ -634,6 +748,7 @@
         row.full_name,
         row.registration_number,
         row.set_year,
+        row.gender,
         row.email,
         row.phone,
         row.whatsapp,
@@ -642,6 +757,7 @@
         row.location,
         row.bio,
         row.experience,
+        getApplicationStatus(row),
         ...(Array.isArray(row.skills) ? row.skills : [])
       ];
 
@@ -719,9 +835,26 @@
 
     const notReviewedTotal = rows.length - reviewedTotal;
 
+    const pendingTotal = rows.filter(
+      row => getApplicationStatus(row) === "Pending"
+    ).length;
+
+    const acceptedTotal = rows.filter(
+      row => getApplicationStatus(row) === "Accepted"
+    ).length;
+
+    const rejectedTotal = rows.filter(
+      row => getApplicationStatus(row) === "Rejected"
+    ).length;
+
     $("#count").textContent = rows.length;
     $("#reviewedCount").textContent = reviewedTotal;
     $("#notReviewedCount").textContent = notReviewedTotal;
+
+    // These three counters were added to admin.html.
+    $("#pendingCount").textContent = pendingTotal;
+    $("#acceptedCount").textContent = acceptedTotal;
+    $("#rejectedCount").textContent = rejectedTotal;
 
     $("#downloadSelected").disabled = !selectedIds.size;
     $("#deleteSelected").disabled = !selectedIds.size;
@@ -796,17 +929,34 @@
   });
 
   $("#applicants").addEventListener("change", event => {
-    if (!event.target.matches(".applicant-check")) return;
+    if (event.target.matches(".applicant-check")) {
+      const id = String(event.target.dataset.id);
 
-    const id = String(event.target.dataset.id);
+      if (event.target.checked) {
+        selectedIds.add(id);
+      } else {
+        selectedIds.delete(id);
+      }
 
-    if (event.target.checked) {
-      selectedIds.add(id);
-    } else {
-      selectedIds.delete(id);
+      render();
+      return;
     }
 
-    render();
+    if (event.target.matches(".application-status-select")) {
+      const id = String(event.target.dataset.id);
+
+      const row = rows.find(
+        item => String(item.id) === id
+      );
+
+      if (row) {
+        setApplicationStatus(
+          row,
+          event.target.value,
+          event.target
+        );
+      }
+    }
   });
 
   $("#selectAll").onchange = event => {
@@ -1209,6 +1359,7 @@
       ["Registration number", regNo(row)],
       ["Full name", row.full_name],
       ["Set / graduation year", row.set_year],
+      ["Gender", row.gender],
       ["Email", row.email],
       ["Phone number", row.phone],
       ["WhatsApp number", row.whatsapp],
@@ -1217,6 +1368,7 @@
       ["Bio", row.bio],
       ["Experience", row.experience],
       ["Portfolio", row.portfolio],
+      ["Application decision", getApplicationStatus(row)],
       [
         "Review status",
         row.reviewed ? "Reviewed" : "Not reviewed"
@@ -1384,6 +1536,7 @@
       ["Registration Number", regNo(row)],
       ["Full Name", row.full_name],
       ["Set / Graduation Year", row.set_year],
+      ["Gender", row.gender],
       ["Phone Number", row.phone],
       ["WhatsApp Number", row.whatsapp],
       ["Email Address", row.email],
@@ -1398,6 +1551,7 @@
       ["Bio", row.bio],
       ["Experience", row.experience],
       ["Portfolio", row.portfolio],
+      ["Application Decision", getApplicationStatus(row)],
       [
         "Review Status",
         row.reviewed ? "Reviewed" : "Not reviewed"
