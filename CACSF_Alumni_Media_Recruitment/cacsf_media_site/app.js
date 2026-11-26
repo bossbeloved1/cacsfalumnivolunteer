@@ -445,13 +445,11 @@ async function loadExpandedLocations() {
 ========================================= */
 
 function getLocationsForState(state) {
-  const existing = places[state] || [];
-  const expanded = expandedPlaces[state] || [];
+  if (locationDatasetLoaded && expandedPlaces[state]?.length) {
+    return expandedPlaces[state];
+  }
 
-  return uniqueLocations([
-    ...existing,
-    ...expanded
-  ]);
+  return places[state] || [];
 }
 
 /* =========================================
