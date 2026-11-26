@@ -312,26 +312,6 @@
     </div>
   </div>
 
-  <script>
-    const titleSelect = document.getElementById("title");
-    const titleOtherWrapper = document.getElementById("titleOtherWrapper");
-    const titleOtherInput = document.getElementById("titleOtherInput");
-
-    titleSelect.addEventListener("change", function () {
-      const isOther = this.value === "Other";
-
-      titleOtherWrapper.hidden = !isOther;
-      titleOtherInput.disabled = !isOther;
-      titleOtherInput.required = isOther;
-
-      if (isOther) {
-        titleOtherInput.focus();
-      } else {
-        titleOtherInput.value = "";
-      }
-    });
-  </script>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
