@@ -11,50 +11,48 @@
   <link rel="stylesheet" href="admin.css">
 
   <style>
-    /* =================================
-       ADMIN HEADER - LOGO ONLY
-    ================================= */
+    /* ADMIN HEADER - LOGO ONLY */
 
     header.top.admin-top {
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 auto !important;
-      padding: 25px 20px !important;
-      text-align: center !important;
+      display:flex!important;
+      justify-content:center!important;
+      align-items:center!important;
+      width:100%!important;
+      max-width:100%!important;
+      margin:0 auto!important;
+      padding:25px 20px!important;
+      text-align:center!important;
     }
 
     header.top.admin-top::before,
     header.top.admin-top::after {
-      display: none !important;
-      content: none !important;
+      display:none!important;
+      content:none!important;
     }
 
     header.top.admin-top .admin-brand {
-      display: inline-flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      width: auto !important;
-      height: auto !important;
-      gap: 0 !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      font-size: 0 !important;
-      line-height: 0 !important;
-      text-decoration: none !important;
+      display:inline-flex!important;
+      justify-content:center!important;
+      align-items:center!important;
+      width:auto!important;
+      height:auto!important;
+      gap:0!important;
+      padding:0!important;
+      margin:0!important;
+      font-size:0!important;
+      line-height:0!important;
+      text-decoration:none!important;
     }
 
     header.top.admin-top .admin-brand img {
-      display: block !important;
-      width: auto !important;
-      height: 55px !important;
-      max-width: 180px !important;
-      max-height: 55px !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      object-fit: contain !important;
+      display:block!important;
+      width:auto!important;
+      height:55px!important;
+      max-width:180px!important;
+      max-height:55px!important;
+      margin:0!important;
+      padding:0!important;
+      object-fit:contain!important;
     }
 
     header.top.admin-top .admin-brand span,
@@ -62,18 +60,26 @@
     header.top.admin-top .admin-brand strong,
     header.top.admin-top .admin-brand::before,
     header.top.admin-top .admin-brand::after {
-      display: none !important;
-      content: none !important;
+      display:none!important;
+      content:none!important;
     }
 
-    @media (max-width: 650px) {
+    /* STAT CARD BUTTON RESET */
+
+    button.stat {
+      appearance:none;
+      -webkit-appearance:none;
+      font:inherit;
+    }
+
+    @media(max-width:650px) {
       header.top.admin-top {
-        padding: 20px 15px !important;
+        padding:20px 15px!important;
       }
 
       header.top.admin-top .admin-brand img {
-        height: 48px !important;
-        max-height: 48px !important;
+        height:48px!important;
+        max-height:48px!important;
       }
     }
   </style>
@@ -84,10 +90,7 @@
   <!-- LOGO ONLY HEADER -->
   <header class="top admin-top" id="adminHeader">
     <a class="admin-brand" href="admin.html" aria-label="CACSF Media Unit">
-      <img
-        src="assets/logo.png"
-        alt="CACSF Media Unit Logo"
-      >
+      <img src="assets/logo.png" alt="CACSF Media Unit Logo">
     </a>
   </header>
 
@@ -142,7 +145,7 @@
     </section>
 
 
-    <!-- DASHBOARD: ONLY SHOWN AFTER ADMIN LOGIN -->
+    <!-- DASHBOARD -->
     <section id="dashboard" hidden>
 
       <section class="admin-hero">
@@ -191,21 +194,40 @@
             <strong id="notReviewedCount">0</strong>
           </button>
 
-          <!-- APPLICATION DECISION COUNTS -->
-          <div class="stat">
-            <small>Pending</small>
+          <!-- CLICKABLE APPLICATION DECISION COUNTS -->
+
+          <button
+            class="stat stat-trigger"
+            id="pendingStatBtn"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="statusListModal"
+          >
+            <small>Pending <span aria-hidden="true">↗</span></small>
             <strong id="pendingCount">0</strong>
-          </div>
+          </button>
 
-          <div class="stat">
-            <small>Accepted</small>
+          <button
+            class="stat stat-trigger"
+            id="acceptedStatBtn"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="statusListModal"
+          >
+            <small>Accepted <span aria-hidden="true">↗</span></small>
             <strong id="acceptedCount">0</strong>
-          </div>
+          </button>
 
-          <div class="stat">
-            <small>Rejected</small>
+          <button
+            class="stat stat-trigger"
+            id="rejectedStatBtn"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="statusListModal"
+          >
+            <small>Rejected <span aria-hidden="true">↗</span></small>
             <strong id="rejectedCount">0</strong>
-          </div>
+          </button>
 
         </div>
 
@@ -423,7 +445,7 @@
     </div>
 
 
-    <!-- REVIEW STATUS LIST -->
+    <!-- REVIEW / APPLICATION STATUS LIST -->
     <div
       id="statusListModal"
       class="overlay-modal status-list-overlay"
