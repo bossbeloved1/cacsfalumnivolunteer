@@ -43,9 +43,44 @@ const closedModal = document.querySelector('#registrationClosed');
 
 const submitButton = form.querySelector('.submit');
 
+/* TITLE ELEMENTS */
+
+const titleSelect = document.querySelector('#title');
+const titleOtherWrapper = document.querySelector('#titleOtherWrapper');
+const titleOtherInput = document.querySelector('#titleOtherInput');
+
 let registrationOpen = false;
 let graphicDesignerFull = false;
 let capacityLoaded = false;
+
+/* =========================================
+   TITLE FIELD — OTHER OPTION
+========================================= */
+
+function updateCustomTitleField() {
+  if (!titleSelect || !titleOtherWrapper || !titleOtherInput) {
+    return;
+  }
+
+  const isOther = titleSelect.value === 'Other';
+
+  titleOtherWrapper.hidden = !isOther;
+  titleOtherInput.disabled = !isOther;
+  titleOtherInput.required = isOther;
+
+  if (!isOther) {
+    titleOtherInput.value = '';
+  }
+}
+
+if (titleSelect) {
+  titleSelect.addEventListener(
+    'change',
+    updateCustomTitleField
+  );
+
+  updateCustomTitleField();
+}
 
 /* =========================================
    SUPABASE CONNECTION
@@ -680,14 +715,35 @@ form.addEventListener('submit', async event => {
 
   const formData = new FormData(form);
 
-  /* TITLE VALIDATION */
+  /* =====================================
+     RESOLVE APPLICANT TITLE
+  ===================================== */
 
-  const title = String(formData.get('title') || '').trim();
+  let title = String(
+    formData.get('title') || ''
+  ).trim();
 
   if (!title) {
-    alert('Please select your title before submitting.');
+    alert('Please select your title.');
+    titleSelect?.focus();
     return;
   }
+
+  if (title === 'Other') {
+    title = String(
+      titleOtherInput?.value || ''
+    ).trim();
+
+    if (!title) {
+      alert('Please enter your preferred title.');
+      titleOtherInput?.focus();
+      return;
+    }
+  }
+
+  /* =====================================
+     SELECTED SKILLS
+  ===================================== */
 
   const skills = [
     ...form.querySelectorAll(
@@ -699,6 +755,10 @@ form.addEventListener('submit', async event => {
     alert('Please select at least one skill.');
     return;
   }
+
+  /* =====================================
+     PORTFOLIO FILE VALIDATION
+  ===================================== */
 
   const files = [...fileInput.files];
 
@@ -724,6 +784,10 @@ form.addEventListener('submit', async event => {
 
     return;
   }
+
+  /* =====================================
+     APPLICATION DATA
+  ===================================== */
 
   const state = formData.get('state');
   const city = formData.get('city');
@@ -752,7 +816,9 @@ form.addEventListener('submit', async event => {
 
   try {
 
-    /* Upload portfolio files */
+    /* =====================================
+       UPLOAD PORTFOLIO FILES
+    ===================================== */
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -782,7 +848,9 @@ form.addEventListener('submit', async event => {
       });
     }
 
-    /* Submit application to Supabase */
+    /* =====================================
+       SUBMIT APPLICATION TO SUPABASE
+    ===================================== */
 
     const { error } = await sb
       .from('applications')
@@ -816,6 +884,10 @@ form.addEventListener('submit', async event => {
       throw error;
     }
 
+    /* =====================================
+       RESET FORM AFTER SUCCESS
+    ===================================== */
+
     form.reset();
 
     citySelect.innerHTML =
@@ -824,6 +896,10 @@ form.addEventListener('submit', async event => {
     citySelect.disabled = true;
 
     fileList.textContent = '';
+
+    /* Hide and reset the custom title field */
+
+    updateCustomTitleField();
 
     successModal.classList.add('show');
 
