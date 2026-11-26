@@ -1387,3 +1387,221 @@ body.modal-open {
     justify-content:flex-start;
   }
 }
+/* =========================================
+   APPLICATION DECISION + WHATSAPP INVITATION
+   COMPACT SINGLE-LINE RESPONSIVE LAYOUT
+========================================= */
+
+/* Keep decision and invitation together */
+.application-decision {
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  flex-wrap:nowrap !important;
+  gap:8px !important;
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  margin-top:12px !important;
+  padding:3px 0 7px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  white-space:nowrap;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+
+/* Decision label and dropdown stay together */
+.application-decision > div {
+  display:inline-flex !important;
+  align-items:center !important;
+  flex-wrap:nowrap !important;
+  flex:0 0 auto;
+  gap:7px !important;
+  white-space:nowrap;
+}
+
+/* Compact decision label */
+.application-decision > strong,
+.application-decision > div > strong {
+  display:inline-block;
+  flex:0 0 auto;
+  font-size:12px;
+  line-height:1.2;
+  white-space:nowrap;
+  color:var(--admin-ink);
+}
+
+/* Compact decision dropdown */
+.application-decision .application-status-select {
+  display:inline-block !important;
+  box-sizing:border-box !important;
+  width:125px !important;
+  min-width:125px !important;
+  max-width:125px !important;
+  height:40px !important;
+  min-height:40px !important;
+  flex:0 0 125px !important;
+  margin:0 !important;
+  padding:0 25px 0 10px !important;
+  border:1px solid var(--admin-border) !important;
+  border-radius:9px !important;
+  background-color:var(--admin-light) !important;
+  color:var(--admin-purple) !important;
+  font-family:inherit;
+  font-size:12px !important;
+  font-weight:800;
+  line-height:1.2;
+  cursor:pointer;
+}
+
+/* WhatsApp invitation matches dropdown height */
+.application-decision .whatsapp-invite {
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  box-sizing:border-box !important;
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:40px !important;
+  min-height:40px !important;
+  margin:0 !important;
+  padding:0 12px !important;
+  border:1px solid #b8e5ca !important;
+  border-radius:9px !important;
+  background:#e9f8f0 !important;
+  color:#147747 !important;
+  font-family:inherit;
+  font-size:12px !important;
+  font-weight:800 !important;
+  line-height:1.2 !important;
+  text-align:center;
+  text-decoration:none;
+  white-space:nowrap !important;
+  overflow:visible;
+}
+
+.application-decision .whatsapp-invite:hover {
+  background:#d9f3e5 !important;
+  border-color:#168653 !important;
+  text-decoration:none;
+}
+
+/* Awaiting review message */
+.application-decision .awaiting-review {
+  display:inline-flex;
+  align-items:center;
+  flex:0 0 auto;
+  min-height:34px;
+  padding:0 10px;
+  border-radius:8px;
+  background:#fff7e8;
+  color:#946000;
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+/* No WhatsApp number message */
+.application-decision .whatsapp-missing {
+  display:inline-flex;
+  align-items:center;
+  flex:0 0 auto;
+  font-size:11px;
+  color:var(--admin-muted);
+  white-space:nowrap;
+}
+
+/* TABLET */
+@media(max-width:700px) {
+  .application-decision {
+    gap:7px !important;
+    margin-top:10px !important;
+  }
+
+  .application-decision > strong,
+  .application-decision > div > strong {
+    font-size:11px;
+  }
+
+  .application-decision .application-status-select {
+    width:112px !important;
+    min-width:112px !important;
+    max-width:112px !important;
+    flex-basis:112px !important;
+    height:36px !important;
+    min-height:36px !important;
+    font-size:11px !important;
+    padding-left:8px !important;
+  }
+
+  .application-decision .whatsapp-invite {
+    height:36px !important;
+    min-height:36px !important;
+    padding:0 10px !important;
+    font-size:11px !important;
+  }
+}
+
+/* SMALL PHONES */
+@media(max-width:480px) {
+  .application-decision {
+    gap:6px !important;
+    padding-bottom:6px;
+  }
+
+  .application-decision > strong,
+  .application-decision > div > strong {
+    font-size:10px;
+  }
+
+  .application-decision > div {
+    gap:5px !important;
+  }
+
+  .application-decision .application-status-select {
+    width:105px !important;
+    min-width:105px !important;
+    max-width:105px !important;
+    flex-basis:105px !important;
+    height:34px !important;
+    min-height:34px !important;
+    padding:0 20px 0 7px !important;
+    font-size:10px !important;
+  }
+
+  .application-decision .whatsapp-invite {
+    height:34px !important;
+    min-height:34px !important;
+    padding:0 9px !important;
+    font-size:10px !important;
+  }
+
+  /* Do not force the invitation onto another row */
+  .applicant-actions a[href*="wa.me"],
+  .applicant-actions a[href*="whatsapp.com"] {
+    flex:0 0 auto;
+    width:auto;
+  }
+}
+
+/* VERY NARROW PHONES */
+@media(max-width:360px) {
+  .application-decision {
+    gap:5px !important;
+  }
+
+  .application-decision .application-status-select {
+    width:98px !important;
+    min-width:98px !important;
+    max-width:98px !important;
+    flex-basis:98px !important;
+  }
+
+  .application-decision .whatsapp-invite {
+    padding:0 7px !important;
+    font-size:9px !important;
+  }
+}
