@@ -1,3 +1,4 @@
+
 "use strict";
 
 /* =========================================
@@ -15,7 +16,6 @@ const skillOptions = [
   'Videographer',
   'Photographer',
   'Website Developer',
-  'Web Designer',
   'Technical Support',
   'Social Media Manager',
   'Digital Marketer',
@@ -93,7 +93,8 @@ for (
 }
 
 /* =========================================
-   NIGERIAN STATES AND CITIES
+   NIGERIAN STATES AND EXISTING LOCATIONS
+   FALLBACK DATA
 ========================================= */
 
 const places = {
@@ -161,8 +162,8 @@ const places = {
 
   'Ekiti': [
     'Ado-Ekiti', 'Ikere-Ekiti', 'Iyin-Ekiti',
-    'Ijero-Ekiti', 'Oye-Ekiti', 'Otun-Ekiti', 'Ikole-Ekiti',
-    'Emure-Ekiti', 'Ilawe-Ekiti'
+    'Ijero-Ekiti', 'Oye-Ekiti', 'Otun-Ekiti',
+    'Ikole-Ekiti', 'Emure-Ekiti', 'Ilawe-Ekiti'
   ],
 
   'Enugu': [
@@ -244,7 +245,7 @@ const places = {
 
   'Osun': [
     'Osogbo', 'Ile-Ife', 'Ilesa', 'Ede',
-    'Iwo', 'Ikirun', 'Ejigbo', 'Oshogbo', 'Gbongan'
+    'Iwo', 'Ikirun', 'Ejigbo', 'Gbongan'
   ],
 
   'Oyo': [
@@ -290,7 +291,172 @@ const places = {
   ]
 };
 
-/* Populate state options */
+/* =========================================
+   EXPANDED NIGERIAN LOCATION DATA
+========================================= */
+
+/*
+  This dataset contains:
+  - 36 Nigerian states and the FCT
+  - 774 Local Government Areas
+  - Towns, districts and neighbourhoods
+    listed under the LGAs.
+
+  The data is loaded from a public JSON
+  dataset hosted on GitHub.
+
+  Existing locations above remain available
+  if the external dataset cannot load.
+*/
+
+const LOCATION_DATA_URL =
+  'https://raw.githubusercontent.com/ayoolaowoilu/Nigeria-Locations-Dataset-2026-API/main/nigeria_locations.json';
+
+let expandedPlaces = {};
+let locationDatasetLoaded = false;
+
+function normalizeStateName(name) {
+  const value = String(name || '').trim().toLowerCase();
+
+  const aliases = {
+    'fct': 'Federal Capital Territory',
+    'abuja': 'Federal Capital Territory',
+    'federal capital territory': 'Federal Capital Territory',
+    'akwa-ibom': 'Akwa Ibom',
+    'crossriver': 'Cross River',
+    'rivers state': 'Rivers',
+    'nassarawa': 'Nasarawa'
+  };
+
+  return aliases[value] ||
+    Object.keys(places).find(
+      state => state.toLowerCase() === value
+    ) ||
+    name;
+}
+
+function uniqueLocations(items) {
+  const seen = new Set();
+
+  return items
+    .filter(item => typeof item === 'string')
+    .map(item => item.trim())
+    .filter(item => {
+      if (!item) return false;
+
+      const key = item.toLowerCase();
+
+      if (seen.has(key)) return false;
+
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.localeCompare(b));
+}
+
+async function loadExpandedLocations() {
+  try {
+    const response = await fetch(LOCATION_DATA_URL, {
+      method: 'GET',
+      cache: 'no-cache'
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Location dataset request failed: ${response.status}`
+      );
+    }
+
+    const dataset = await response.json();
+
+    if (
+      !dataset ||
+      !Array.isArray(dataset.states) ||
+      dataset.states.length === 0
+    ) {
+      throw new Error('Invalid location dataset format.');
+    }
+
+    const result = {};
+
+    dataset.states.forEach(stateData => {
+      const stateName = normalizeStateName(stateData.name);
+
+      const locations = [];
+
+      /*
+        Add the state capital.
+      */
+
+      if (stateData.capital) {
+        locations.push(stateData.capital);
+      }
+
+      /*
+        Add each LGA and its local areas.
+      */
+
+      (stateData.lgas || []).forEach(lga => {
+        if (lga.name) {
+          locations.push(lga.name);
+        }
+
+        (lga.areas || []).forEach(area => {
+          locations.push(area);
+        });
+      });
+
+      result[stateName] = uniqueLocations(locations);
+    });
+
+    expandedPlaces = result;
+    locationDatasetLoaded = true;
+
+    /*
+      Refresh the selected state's options
+      if a visitor selected a state while
+      the dataset was still loading.
+    */
+
+    if (stateSelect.value) {
+      populateCityOptions(stateSelect.value);
+    }
+
+    console.info(
+      'Expanded Nigerian location dataset loaded successfully.'
+    );
+
+    return true;
+
+  } catch (error) {
+    console.warn(
+      'Could not load expanded location dataset. Using fallback locations.',
+      error
+    );
+
+    locationDatasetLoaded = false;
+
+    return false;
+  }
+}
+
+/* =========================================
+   GET LOCATIONS FOR SELECTED STATE
+========================================= */
+
+function getLocationsForState(state) {
+  const existing = places[state] || [];
+  const expanded = expandedPlaces[state] || [];
+
+  return uniqueLocations([
+    ...existing,
+    ...expanded
+  ]);
+}
+
+/* =========================================
+   POPULATE STATE OPTIONS
+========================================= */
 
 Object.keys(places)
   .sort((a, b) =>
@@ -309,23 +475,43 @@ Object.keys(places)
     stateSelect.append(option);
   });
 
-/* Populate cities when state changes */
+/* =========================================
+   POPULATE CITY / TOWN OPTIONS
+========================================= */
 
-stateSelect.addEventListener('change', () => {
+function populateCityOptions(state) {
   citySelect.innerHTML =
     '<option value="">Select city / town</option>';
 
-  citySelect.disabled = !stateSelect.value;
+  citySelect.disabled = !state;
 
-  (places[stateSelect.value] || []).forEach(city => {
+  if (!state) return;
+
+  const locations = getLocationsForState(state);
+
+  locations.forEach(location => {
     const option = document.createElement('option');
 
-    option.value = city;
-    option.textContent = city;
+    option.value = location;
+    option.textContent = location;
 
     citySelect.append(option);
   });
+}
+
+/* When the selected state changes */
+
+stateSelect.addEventListener('change', () => {
+  populateCityOptions(stateSelect.value);
 });
+
+/*
+  Load expanded locations in the background.
+  The form remains usable with the fallback
+  list while the dataset is loading.
+*/
+
+loadExpandedLocations();
 
 /* =========================================
    SKILL OPTIONS
@@ -584,6 +770,7 @@ form.addEventListener('submit', async event => {
     phone: formData.get('phone'),
     whatsapp: formData.get('whatsapp'),
     email: formData.get('email'),
+    gender: formData.get('gender'),
     state,
     city,
     location: `${city}, ${state}`,
