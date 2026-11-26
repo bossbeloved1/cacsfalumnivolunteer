@@ -64,7 +64,6 @@
       .replace(/[^a-z0-9-_]/gi, "_")
       .replace(/_+/g, "_");
 
-  // Older applications without a saved decision are treated as Pending.
   function getApplicationStatus(row) {
     const status = String(row.application_status || "Pending");
 
@@ -434,8 +433,14 @@
       .trim()
       .split(/\s+/)[0];
 
+    const title = String(row.title || "").trim();
+
+    const salutation = title
+      ? `${title} ${firstName}`
+      : firstName;
+
     const message =
-      `Hello ${firstName}, congratulations! Your application to volunteer with the CACSF Alumni Fellowship Media Unit has been accepted. We would love to welcome you into the team. Please use this link to join our official WhatsApp group: ${WHATSAPP_GROUP_LINK}`;
+      `Hello ${salutation}, congratulations! Your application to volunteer with the CACSF Alumni Fellowship Media Unit has been accepted. We would love to welcome you into the team. Please use this link to join the CACSF Alumni Media Unit Onboarding Group: ${WHATSAPP_GROUP_LINK}`;
 
     return `https://wa.me/${encodeURIComponent(number)}?text=${encodeURIComponent(message)}`;
   }
@@ -469,6 +474,12 @@
 
     if (!allowed.includes(value)) {
       notify("Invalid application status.");
+      render();
+      return;
+    }
+
+    if (row.reviewed !== true) {
+      notify("Mark this application as reviewed before making a decision.");
       render();
       return;
     }
@@ -528,9 +539,10 @@
            rel="noopener noreferrer">${esc(row.portfolio)}</a>`
       : "—";
 
-    const inviteLink = applicationStatus === "Accepted"
-      ? whatsappInvitationLink(row)
-      : "";
+    const inviteLink =
+      reviewed && applicationStatus === "Accepted"
+        ? whatsappInvitationLink(row)
+        : "";
 
     return `
       <article class="applicant" data-id="${esc(id)}">
@@ -550,7 +562,7 @@
             </label>
 
             <div>
-              <h3>${esc(row.full_name || "Unnamed applicant")}</h3>
+              <h3>${esc(row.title ? row.title + " " : "")}${esc(row.full_name || "Unnamed applicant")}</h3>
             </div>
 
           </div>
@@ -570,6 +582,8 @@
         </div>
 
         <div class="meta">
+
+          <div><strong>Title:</strong> ${esc(row.title || "—")}</div>
 
           <div><strong>Set:</strong> ${esc(row.set_year || "—")}</div>
 
@@ -611,40 +625,53 @@
         </p>
 
         <div class="application-decision">
-          <strong>Application decision:</strong>
-
-          <select
-            class="application-status-select"
-            data-id="${esc(id)}"
-            aria-label="Application decision for ${esc(row.full_name || "applicant")}">
-            <option value="Pending" ${applicationStatus === "Pending" ? "selected" : ""}>
-              Pending
-            </option>
-
-            <option value="Accepted" ${applicationStatus === "Accepted" ? "selected" : ""}>
-              Accepted
-            </option>
-
-            <option value="Rejected" ${applicationStatus === "Rejected" ? "selected" : ""}>
-              Rejected
-            </option>
-          </select>
 
           ${
-            applicationStatus === "Accepted"
-              ? inviteLink
-                ? `<a
-                     class="applicant-action whatsapp-invite"
-                     href="${esc(inviteLink)}"
-                     target="_blank"
-                     rel="noopener noreferrer">
-                     Send WhatsApp invitation
-                   </a>`
-                : `<span class="whatsapp-missing">
-                     No WhatsApp number provided
-                   </span>`
-              : ""
+            reviewed
+              ? `
+                <strong>Application decision:</strong>
+
+                <select
+                  class="application-status-select"
+                  data-id="${esc(id)}"
+                  aria-label="Application decision for ${esc(row.full_name || "applicant")}">
+
+                  <option value="Pending" ${applicationStatus === "Pending" ? "selected" : ""}>
+                    Pending
+                  </option>
+
+                  <option value="Accepted" ${applicationStatus === "Accepted" ? "selected" : ""}>
+                    Accepted
+                  </option>
+
+                  <option value="Rejected" ${applicationStatus === "Rejected" ? "selected" : ""}>
+                    Rejected
+                  </option>
+
+                </select>
+
+                ${
+                  applicationStatus === "Accepted"
+                    ? inviteLink
+                      ? `<a
+                           class="applicant-action whatsapp-invite"
+                           href="${esc(inviteLink)}"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                           Send WhatsApp invitation
+                         </a>`
+                      : `<span class="whatsapp-missing">
+                           No WhatsApp number provided
+                         </span>`
+                    : ""
+                }
+              `
+              : `
+                <strong>Application decision:</strong>
+                <span class="awaiting-review">Awaiting review</span>
+              `
           }
+
         </div>
 
         ${
@@ -745,6 +772,7 @@
 
     return rows.filter(row => {
       const values = [
+        row.title,
         row.full_name,
         row.registration_number,
         row.set_year,
@@ -835,15 +863,20 @@
 
     const notReviewedTotal = rows.length - reviewedTotal;
 
-    const pendingTotal = rows.filter(
+    // Decision counters only include applicants who have been reviewed.
+    const reviewedRows = rows.filter(
+      row => row.reviewed === true
+    );
+
+    const pendingTotal = reviewedRows.filter(
       row => getApplicationStatus(row) === "Pending"
     ).length;
 
-    const acceptedTotal = rows.filter(
+    const acceptedTotal = reviewedRows.filter(
       row => getApplicationStatus(row) === "Accepted"
     ).length;
 
-    const rejectedTotal = rows.filter(
+    const rejectedTotal = reviewedRows.filter(
       row => getApplicationStatus(row) === "Rejected"
     ).length;
 
@@ -851,7 +884,6 @@
     $("#reviewedCount").textContent = reviewedTotal;
     $("#notReviewedCount").textContent = notReviewedTotal;
 
-    // These three counters were added to admin.html.
     $("#pendingCount").textContent = pendingTotal;
     $("#acceptedCount").textContent = acceptedTotal;
     $("#rejectedCount").textContent = rejectedTotal;
@@ -978,16 +1010,43 @@
     render();
   };
 
-  /* REVIEWED / NOT REVIEWED POPUP */
+  /* REVIEWED / NOT REVIEWED AND DECISION POPUPS */
 
-  function openStatusList(reviewed) {
-    const list = rows.filter(
-      row => row.reviewed === reviewed
-    );
+  function openStatusList(type) {
+    let list = [];
+    let title = "";
+    let description = "";
+    let badgeClass = "";
+    let badgeText = "";
 
-    $("#statusListTitle").textContent = reviewed
-      ? "Reviewed Applicants"
-      : "Not Reviewed Applicants";
+    if (type === "reviewed") {
+      list = rows.filter(row => row.reviewed === true);
+      title = "Reviewed Applicants";
+      description = "Applicants whose applications have been reviewed.";
+      badgeClass = "reviewed";
+      badgeText = "✓ Reviewed";
+
+    } else if (type === "not-reviewed") {
+      list = rows.filter(row => row.reviewed !== true);
+      title = "Not Reviewed Applicants";
+      description = "Applicants still awaiting their initial review.";
+      badgeClass = "not-reviewed";
+      badgeText = "Not reviewed";
+
+    } else {
+      list = rows.filter(
+        row =>
+          row.reviewed === true &&
+          getApplicationStatus(row) === type
+      );
+
+      title = `${type} Applicants`;
+      description = `Applicants with the ${type.toLowerCase()} decision.`;
+      badgeClass = type.toLowerCase();
+      badgeText = type;
+    }
+
+    $("#statusListTitle").textContent = title;
 
     $("#statusListSubtitle").textContent =
       `${list.length} applicant${list.length === 1 ? "" : "s"} in this list`;
@@ -998,13 +1057,7 @@
       content.innerHTML = `
         <div class="status-empty">
           <h3>No applicants found</h3>
-          <p>
-            ${
-              reviewed
-                ? "No applicants have been marked as reviewed yet."
-                : "All applicants have been reviewed."
-            }
-          </p>
+          <p>${esc(description)}</p>
         </div>
       `;
     } else {
@@ -1015,15 +1068,15 @@
           data-applicant-id="${esc(row.id)}">
 
           <span class="status-applicant-info">
-            <strong>${esc(row.full_name || "Unnamed applicant")}</strong>
+            <strong>${esc(row.title ? row.title + " " : "")}${esc(row.full_name || "Unnamed applicant")}</strong>
             <small>
               Registration #${esc(regNo(row))}
               · ${esc(row.set_year || "Set not provided")}
             </small>
           </span>
 
-          <span class="status-applicant-badge ${reviewed ? "reviewed" : "not-reviewed"}">
-            ${reviewed ? "✓ Reviewed" : "Not reviewed"}
+          <span class="status-applicant-badge ${esc(badgeClass)}">
+            ${esc(badgeText)}
           </span>
 
         </button>
@@ -1034,11 +1087,23 @@
   }
 
   $("#reviewedStatBtn").addEventListener("click", () => {
-    openStatusList(true);
+    openStatusList("reviewed");
   });
 
   $("#notReviewedStatBtn").addEventListener("click", () => {
-    openStatusList(false);
+    openStatusList("not-reviewed");
+  });
+
+  $("#pendingStatBtn").addEventListener("click", () => {
+    openStatusList("Pending");
+  });
+
+  $("#acceptedStatBtn").addEventListener("click", () => {
+    openStatusList("Accepted");
+  });
+
+  $("#rejectedStatBtn").addEventListener("click", () => {
+    openStatusList("Rejected");
   });
 
   $("#closeStatusList").onclick = () => {
@@ -1166,9 +1231,12 @@
   async function setReviewed(row, value) {
     const { data, error } = await db
       .from("applications")
-      .update({ reviewed: value })
+      .update({
+        reviewed: value,
+        application_status: "Pending"
+      })
       .eq("id", row.id)
-      .select("id, reviewed");
+      .select("id, reviewed, application_status");
 
     if (error) {
       notify("Could not save review status. " + error.message);
@@ -1182,13 +1250,16 @@
       return;
     }
 
-    row.reviewed = value;
+    row.reviewed = data[0].reviewed;
+    row.application_status =
+      data[0].application_status || "Pending";
+
     render();
 
     notify(
       value
-        ? "Applicant marked as reviewed."
-        : "Applicant marked as not reviewed."
+        ? "Applicant marked as reviewed. Decision set to Pending."
+        : "Applicant marked as not reviewed. Decision reset to Pending."
     );
   }
 
@@ -1357,6 +1428,7 @@
   function openDetails(row) {
     const fields = [
       ["Registration number", regNo(row)],
+      ["Title", row.title],
       ["Full name", row.full_name],
       ["Set / graduation year", row.set_year],
       ["Gender", row.gender],
@@ -1388,7 +1460,7 @@
     ];
 
     $("#previewTitle").textContent =
-      row.full_name || "Applicant details";
+      `${row.title ? row.title + " " : ""}${row.full_name || "Applicant details"}`;
 
     $("#previewSubtitle").textContent =
       `Registration #${regNo(row)}`;
@@ -1534,6 +1606,7 @@
   function exportFields(row) {
     const fields = [
       ["Registration Number", regNo(row)],
+      ["Title", row.title],
       ["Full Name", row.full_name],
       ["Set / Graduation Year", row.set_year],
       ["Gender", row.gender],
@@ -1576,7 +1649,7 @@
 
         <div class="export-heading">
           <small>VOLUNTEER APPLICATION</small>
-          <h1>${esc(row.full_name || "Applicant")}</h1>
+          <h1>${esc(row.title ? row.title + " " : "")}${esc(row.full_name || "Applicant")}</h1>
           <p>Registration #${esc(regNo(row))}</p>
         </div>
 
@@ -1791,7 +1864,7 @@
     } else if (format === "word") {
       const sections = records.map(row => `
         <h2>
-          ${esc(row.full_name || "Applicant")}
+          ${esc(row.title ? row.title + " " : "")}${esc(row.full_name || "Applicant")}
           — #${esc(regNo(row))}
         </h2>
 
