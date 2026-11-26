@@ -63,7 +63,7 @@ body.gate-locked {
 .brand img {
   display: block;
   width: auto;
-  height: 155px;
+  height: 125px;
   max-width: min(85vw, 400px);
   object-fit: contain;
   object-position: center;
