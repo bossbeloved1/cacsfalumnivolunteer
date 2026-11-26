@@ -295,20 +295,6 @@ const places = {
    EXPANDED NIGERIAN LOCATION DATA
 ========================================= */
 
-/*
-  This dataset contains:
-  - 36 Nigerian states and the FCT
-  - 774 Local Government Areas
-  - Towns, districts and neighbourhoods
-    listed under the LGAs.
-
-  The data is loaded from a public JSON
-  dataset hosted on GitHub.
-
-  Existing locations above remain available
-  if the external dataset cannot load.
-*/
-
 const LOCATION_DATA_URL =
   'https://raw.githubusercontent.com/ayoolaowoilu/Nigeria-Locations-Dataset-2026-API/main/nigeria_locations.json';
 
@@ -384,17 +370,9 @@ async function loadExpandedLocations() {
 
       const locations = [];
 
-      /*
-        Add the state capital.
-      */
-
       if (stateData.capital) {
         locations.push(stateData.capital);
       }
-
-      /*
-        Add each LGA and its local areas.
-      */
 
       (stateData.lgas || []).forEach(lga => {
         if (lga.name) {
@@ -411,12 +389,6 @@ async function loadExpandedLocations() {
 
     expandedPlaces = result;
     locationDatasetLoaded = true;
-
-    /*
-      Refresh the selected state's options
-      if a visitor selected a state while
-      the dataset was still loading.
-    */
 
     if (stateSelect.value) {
       populateCityOptions(stateSelect.value);
@@ -497,17 +469,9 @@ function populateCityOptions(state) {
   });
 }
 
-/* When the selected state changes */
-
 stateSelect.addEventListener('change', () => {
   populateCityOptions(stateSelect.value);
 });
-
-/*
-  Load expanded locations in the background.
-  The form remains usable with the fallback
-  list while the dataset is loading.
-*/
 
 loadExpandedLocations();
 
@@ -555,11 +519,6 @@ function showClosedRegistration() {
   document.querySelector('#registrationClosed')
     .classList.add('show');
 }
-
-/*
-  When two applicants have selected Graphic Designer,
-  disable that option without displaying a FULL message.
-*/
 
 function updateGraphicDesignerOption(count) {
   graphicDesignerFull = count >= 2;
@@ -644,8 +603,6 @@ async function refreshCapacity() {
   }
 }
 
-/* Check availability when the page opens */
-
 refreshCapacity();
 
 /* =========================================
@@ -721,6 +678,17 @@ form.addEventListener('submit', async event => {
     return;
   }
 
+  const formData = new FormData(form);
+
+  /* TITLE VALIDATION */
+
+  const title = String(formData.get('title') || '').trim();
+
+  if (!title) {
+    alert('Please select your title before submitting.');
+    return;
+  }
+
   const skills = [
     ...form.querySelectorAll(
       'input[name="skills"]:checked'
@@ -757,12 +725,11 @@ form.addEventListener('submit', async event => {
     return;
   }
 
-  const formData = new FormData(form);
-
   const state = formData.get('state');
   const city = formData.get('city');
 
   const data = {
+    title,
     full_name: formData.get('full_name'),
     set_year: formData.get('set_year'),
     phone: formData.get('phone'),
