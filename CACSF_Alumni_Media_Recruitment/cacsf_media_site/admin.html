@@ -82,14 +82,14 @@
 <body>
 
   <!-- LOGO ONLY HEADER -->
-  <header class="top">
-  <a class="brand" href="admin.html" aria-label="CACSF Media Unit">
-    <img
-      src="assets/logo.png"
-      alt="CACSF Media Unit Logo"
-    >
-  </a>
-</header>
+  <header class="top admin-top" id="adminHeader">
+    <a class="admin-brand" href="admin.html" aria-label="CACSF Media Unit">
+      <img
+        src="assets/logo.png"
+        alt="CACSF Media Unit Logo"
+      >
+    </a>
+  </header>
 
   <main class="admin-wrap">
 
@@ -190,6 +190,22 @@
             <small>Not Reviewed <span aria-hidden="true">↗</span></small>
             <strong id="notReviewedCount">0</strong>
           </button>
+
+          <!-- APPLICATION DECISION COUNTS -->
+          <div class="stat">
+            <small>Pending</small>
+            <strong id="pendingCount">0</strong>
+          </div>
+
+          <div class="stat">
+            <small>Accepted</small>
+            <strong id="acceptedCount">0</strong>
+          </div>
+
+          <div class="stat">
+            <small>Rejected</small>
+            <strong id="rejectedCount">0</strong>
+          </div>
 
         </div>
 
@@ -495,32 +511,6 @@
     </footer>
 
   </main>
-
-
-  <!-- HEADER CLEANUP -->
-  <script>
-    (function () {
-      const header = document.getElementById("adminHeader");
-
-      if (!header) return;
-
-      const logo = header.querySelector("img");
-
-      if (!logo) return;
-
-      // Remove all old header content.
-      // Rebuild the header using only the logo image.
-      const link = document.createElement("a");
-
-      link.className = "admin-brand";
-      link.href = "admin.html";
-      link.setAttribute("aria-label", "CACSF Media Unit");
-
-      link.appendChild(logo);
-
-      header.replaceChildren(link);
-    })();
-  </script>
 
 
   <!-- SUPABASE AND ADMIN SCRIPTS -->
