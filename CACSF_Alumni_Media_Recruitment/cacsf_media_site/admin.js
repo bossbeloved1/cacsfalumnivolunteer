@@ -624,6 +624,25 @@
           ${files.length ? `${files.length} file(s) uploaded` : "None"}
         </p>
 
+        ${
+          skills.length
+            ? `<div class="tags">
+                ${skills.map(skill =>
+                  `<span class="tag">${esc(skill)}</span>`
+                ).join("")}
+              </div>`
+            : ""
+        }
+
+        <!-- SUBMITTED DATE -->
+        <div class="submitted-line">
+          <strong>Submitted:</strong>
+          ${row.created_at
+            ? esc(new Date(row.created_at).toLocaleString())
+            : "—"}
+        </div>
+
+        <!-- APPLICATION DECISION: DIRECTLY BELOW SUBMITTED DATE -->
         <div class="application-decision">
 
           ${
@@ -672,23 +691,6 @@
               `
           }
 
-        </div>
-
-        ${
-          skills.length
-            ? `<div class="tags">
-                ${skills.map(skill =>
-                  `<span class="tag">${esc(skill)}</span>`
-                ).join("")}
-              </div>`
-            : ""
-        }
-
-        <div class="submitted-line">
-          <strong>Submitted:</strong>
-          ${row.created_at
-            ? esc(new Date(row.created_at).toLocaleString())
-            : "—"}
         </div>
 
         <div class="applicant-actions">
@@ -863,7 +865,6 @@
 
     const notReviewedTotal = rows.length - reviewedTotal;
 
-    // Decision counters only include applicants who have been reviewed.
     const reviewedRows = rows.filter(
       row => row.reviewed === true
     );
